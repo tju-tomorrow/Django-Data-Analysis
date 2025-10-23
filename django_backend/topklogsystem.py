@@ -8,7 +8,7 @@ os.environ["CHROMA_TELEMETRY_ENABLED"] = "false"
 import json
 import logging
 import pandas as pd
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # llama-index & chroma
 import chromadb
@@ -21,6 +21,14 @@ from llama_index.embeddings.ollama import OllamaEmbedding  # 使用 llama-index 
 
 # langchain (仅用于 prompt)
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
+
+# 导入自定义 prompt 模板
+try:
+    from deepseek_api.prompt_templates import PromptTemplates
+    prompt_templates = PromptTemplates()
+except ImportError:
+    # 如果未安装或找不到模块，使用内置的简单模板
+    prompt_templates = None
 
 # 日志
 logging.basicConfig(level=logging.INFO)
@@ -124,8 +132,19 @@ class TopKLogSystem:
 
             # LLM 生成响应
 
-    def generate_response(self, query: str, context: Dict) -> str:
-        prompt = self._build_prompt_string(query, context)  # 构建提示词字符串
+    def generate_response(self, query: str, context: Dict, query_type: str = "analysis") -> str:
+        """
+        使用 LLM 生成响应
+        
+        Args:
+            query: 用户查询
+            context: 检索到的日志上下文
+            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            
+        Returns:
+            LLM 生成的响应文本
+        """
+        prompt = self._build_prompt_string(query, context, query_type)  # 构建提示词字符串
 
         try:
             response = self.llm.complete(prompt)  # 使用 complete 而不是 invoke
@@ -136,32 +155,125 @@ class TopKLogSystem:
 
             # 构建 prompt 字符串
 
-    def _build_prompt_string(self, query: str, context: Dict) -> str:
+    def _build_prompt_string(self, query: str, context: Dict, query_type: str = "analysis") -> str:
+        """
+        构建提示词字符串
+        
+        Args:
+            query: 用户查询
+            context: 检索到的日志上下文
+            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            
+        Returns:
+            构建好的提示词
+        """
         # 构建日志上下文
-        log_context = "## 相关历史日志参考:\n"
+        log_context = ""
         for i, log in enumerate(context, 1):
             log_context += f"日志 {i} : {log['content']}\n\n"
-
-        # 完整 prompt
+        
+        # 使用 prompt 模板
+        if prompt_templates:
+            # 使用专业模板库
+            try:
+                prompt = prompt_templates.get_template_by_type(
+                    query_type=query_type,
+                    log_context=log_context,
+                    query=query
+                )
+                return prompt
+            except Exception as e:
+                logger.error(f"使用模板失败: {e}，回退到内置模板")
+        
+        # 内置的默认模板（作为备份）
         prompt = f"""
+你是一个专业的日志分析专家，擅长从海量日志中发现问题、定位根因、提供解决方案。
+
+你的分析应该：
+1. 结构化：使用清晰的段落和标题
+2. 数据驱动：引用具体的日志证据
+3. 深入：从现象到根因，再到解决方案
+4. 可操作：提供具体的修复建议
+
+## 相关历史日志参考:
 {log_context}
 
 ## 当前需要分析的问题:
 {query}
 
-请基于以上信息，提供详细的分析报告:
+## 分析要求
+请按照以下步骤进行分析：
+
+### 第一步：问题识别
+从日志中提取关键错误信息、异常模式、性能指标
+
+### 第二步：根因分析
+结合日志时间线、错误堆栈、系统状态，推断问题根本原因
+
+### 第三步：影响评估
+评估问题的严重程度、影响范围、业务影响
+
+### 第四步：解决方案
+提供分层解决方案：
+- 紧急修复（立即可执行）
+- 短期优化（一周内）
+- 长期改进（架构层面）
+
+### 第五步：预防措施
+建议监控指标、告警规则、代码规范
+
+## 输出格式要求
+请使用 Markdown 格式，包含以下部分：
+- **问题摘要**：简明概述问题
+- **根因分析**：详细分析问题原因
+- **影响范围**：评估影响范围和严重程度
+- **解决方案**：分层次提供解决建议
+- **预防措施**：防止类似问题再次发生的建议
+
+## Few-shot 示例
+<example>
+问题：数据库连接池耗尽
+日志：HikariPool-1 - Connection is not available, request timed out after 30000ms
+
+分析：
+**问题摘要**
+系统出现数据库连接池耗尽，导致新请求无法获取连接
+
+**根因分析**
+1. 连接泄漏：部分代码未正确关闭连接
+2. 慢查询：某些查询执行时间过长，占用连接
+3. 并发量激增：流量突增超过连接池容量
+
+**解决方案**
+- 紧急：重启服务释放连接，临时扩大连接池
+- 短期：代码审查，添加连接自动回收机制
+- 长期：引入读写分离，优化慢查询
+</example>
+
+请开始你的分析：
 """
         return prompt
 
         # 执行查询
 
-    def query(self, query: str) -> Dict:
+    def query(self, query: str, query_type: str = "analysis") -> Dict:
+        """
+        执行查询并生成响应
+        
+        Args:
+            query: 用户查询
+            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            
+        Returns:
+            包含响应和检索统计的字典
+        """
         log_results = self.retrieve_logs(query)
-        response = self.generate_response(query, log_results)  # 生成响应
+        response = self.generate_response(query, log_results, query_type)  # 生成响应
 
         return {
             "response": response,
-            "retrieval_stats": len(log_results)
+            "retrieval_stats": len(log_results),
+            "query_type": query_type
         }
 
     # 示例使用
@@ -175,10 +287,29 @@ if __name__ == "__main__":
         embedding_model="bge-large"
     )
 
-    # 执行查询
+    # 基础日志分析示例
+    print("\n=== 基础日志分析示例 ===")
     query = "如何解决数据库连接池耗尽的问题？"
-    result = system.query(query)
-
+    result = system.query(query, query_type="analysis")
     print("查询:", query)
-    print("响应:", result["response"])
+    print("查询类型:", result["query_type"])
     print("检索统计:", result["retrieval_stats"])
+    print("响应:", result["response"])
+    
+    # 错误分类示例
+    print("\n=== 错误分类示例 ===")
+    query = "分析系统中的错误类型和严重程度"
+    result = system.query(query, query_type="error_classification")
+    print("查询:", query)
+    print("查询类型:", result["query_type"])
+    print("检索统计:", result["retrieval_stats"])
+    print("响应:", result["response"])
+    
+    # 性能分析示例
+    print("\n=== 性能分析示例 ===")
+    query = "分析系统性能瓶颈并提供优化建议"
+    result = system.query(query, query_type="performance_analysis")
+    print("查询:", query)
+    print("查询类型:", result["query_type"])
+    print("检索统计:", result["retrieval_stats"])
+    print("响应:", result["response"])
