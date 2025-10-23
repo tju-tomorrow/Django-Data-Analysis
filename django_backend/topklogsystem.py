@@ -71,6 +71,17 @@ class TopKLogSystem:
 
         chroma_client = chromadb.PersistentClient(path=vector_store_path)  # chromadb 持久化
 
+        # 检查是否已存在集合
+        collection_exists = False
+        try:
+            existing_collections = chroma_client.list_collections()
+            collection_exists = any(c.name == "log_collection" for c in existing_collections)
+            if collection_exists:
+                logger.info("找到现有向量索引，直接加载...")
+        except Exception as e:
+            logger.warning(f"检查集合时出错: {e}")
+            collection_exists = False
+
         # ChromaVectorStore 将 collection 与 store 绑定
         # 也是将 Chroma 包装为 llama-index 的接口
         # StorageContext存储上下文， 包含Vector Store、Document Store、Index Store 等
@@ -79,13 +90,26 @@ class TopKLogSystem:
         # 构建 log 库 index
         log_vector_store = ChromaVectorStore(chroma_collection=log_collection)
         log_storage_context = StorageContext.from_defaults(vector_store=log_vector_store)
-        if log_documents := self._load_documents(self.log_path):
-            self.log_index = VectorStoreIndex.from_documents(
-                log_documents,
-                storage_context=log_storage_context,
-                show_progress=True,
+        
+        # 检查集合是否为空
+        is_empty = len(log_collection.get(limit=1)["ids"]) == 0
+        
+        # 只有当集合不存在或为空时才重建索引
+        if not collection_exists or is_empty:
+            logger.info("向量索引不存在或为空，开始构建...")
+            if log_documents := self._load_documents(self.log_path):
+                self.log_index = VectorStoreIndex.from_documents(
+                    log_documents,
+                    storage_context=log_storage_context,
+                    show_progress=True,
+                )
+                logger.info(f"日志库索引构建完成，共 {len(log_documents)} 条日志")
+        else:
+            # 直接使用现有索引
+            self.log_index = VectorStoreIndex.from_vector_store(
+                log_vector_store,
             )
-            logger.info(f"日志库索引构建完成，共 {len(log_documents)} 条日志")
+            logger.info("成功加载现有向量索引，跳过构建步骤")
 
     @staticmethod
     # 加载文档数据
@@ -122,7 +146,11 @@ class TopKLogSystem:
 
     def retrieve_logs(self, query: str, top_k: int = 10) -> List[Dict]:
         if not self.log_index:
-            return []
+            logger.warning("索引未初始化，尝试重新构建...")
+            self._build_vectorstore()
+            if not self.log_index:
+                logger.error("索引构建失败")
+                return []
 
         try:
             retriever = self.log_index.as_retriever(similarity_top_k=top_k)  # topK
