@@ -1,23 +1,35 @@
 <template>
   <div class="chat-input-container">
-    <textarea
-      v-model="message"
-      class="chat-input"
-      placeholder="输入消息..."
-      @keyup.enter.exact="sendMessage"
-      @keyup.enter.shift="addNewline"
-      :disabled="loading"
-    ></textarea>
+    <div class="input-top-row">
+      <select
+        v-model="selectedQueryType"
+        class="query-type-select"
+        :disabled="loading"
+      >
+        <option value="analysis">日志分析</option>
+        <option value="error_classification">错误分类</option>
+        <option value="performance_analysis">性能分析</option>
+        <option value="security_analysis">安全分析</option>
+      </select>
+      <textarea
+        v-model="message"
+        class="chat-input"
+        placeholder="输入消息..."
+        @keyup.enter.exact="sendMessage"
+        @keyup.enter.shift="addNewline"
+        :disabled="loading"
+      ></textarea>
+    </div>
     <div class="input-actions">
-      <button 
-        class="secondary" 
+      <button
+        class="secondary"
         @click="clearInput"
         :disabled="!message.trim() || loading"
       >
         清除
       </button>
-      <button 
-        class="primary" 
+      <button
+        class="primary"
         @click="sendMessage"
         :disabled="!message.trim() || loading"
       >
@@ -29,33 +41,34 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue';
+import { ref, defineProps, defineEmits } from "vue";
 
 const props = defineProps({
   loading: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
-const emits = defineEmits(['send']);
+const emits = defineEmits(["send"]);
 
-const message = ref('');
+const message = ref("");
+const selectedQueryType = ref("analysis"); // 默认查询类型
 
 const sendMessage = () => {
   const content = message.value.trim();
   if (content) {
-    emits('send', content);
-    message.value = '';
+    emits("send", content, selectedQueryType.value);
+    message.value = "";
   }
 };
 
 const clearInput = () => {
-  message.value = '';
+  message.value = "";
 };
 
 const addNewline = () => {
-  message.value += '\n';
+  message.value += "\n";
 };
 </script>
 
@@ -68,7 +81,29 @@ const addNewline = () => {
   border-top: 1px solid var(--border-color);
 }
 
+.input-top-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.query-type-select {
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  height: 40px; /* Make it consistent with the textarea height */
+}
+
+.query-type-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .chat-input {
+  flex: 1; /* Allow textarea to take available space */
   min-height: 80px;
   resize: vertical;
   width: 100%;

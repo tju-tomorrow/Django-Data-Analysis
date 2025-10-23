@@ -39,8 +39,8 @@ export default {
   },
   
   // 发送聊天消息
-  chat(sessionId, userInput) {
-    return api.post('/chat', { session_id: sessionId, user_input: userInput });
+  chat(sessionId, userInput, queryType = "analysis") {
+    return api.post('/chat', { session_id: sessionId, user_input: userInput, query_type: queryType });
   },
   
   // 获取历史记录
