@@ -15,19 +15,56 @@ from django.conf import settings
 # 线程锁用于速率限制
 rate_lock = threading.Lock()
 
-def deepseek_r1_api_call(prompt: str) -> str:
-    """模拟 DeepSeek-R1 API 调用函数"""
-    from topklogsystem import TopKLogSystem
-    system = TopKLogSystem(
-        log_path="./data/log",
-        llm="deepseek-r1:7b",
-        embedding_model="bge-large:latest"
-    )
+# 全局单例：TopKLogSystem 实例（懒加载）
+_log_system_instance = None
+_log_system_lock = threading.Lock()
 
-    query = prompt
-    result = system.query(query)
+def get_log_system():
+    """
+    获取 TopKLogSystem 单例实例（懒加载 + 线程安全）
+    只在第一次调用时初始化，后续直接返回已有实例
+    """
+    global _log_system_instance
+    
+    if _log_system_instance is None:
+        with _log_system_lock:
+            # 双重检查锁定模式（避免多线程重复初始化）
+            if _log_system_instance is None:
+                from topklogsystem import TopKLogSystem
+                from model_config import CURRENT_CONFIG
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                logger.info("初始化 TopKLogSystem 单例实例...")
+                logger.info(f"使用模型: LLM={CURRENT_CONFIG['llm']}, Embedding={CURRENT_CONFIG['embedding_model']}")
+                
+                _log_system_instance = TopKLogSystem(
+                    log_path="./data/log",
+                    llm=CURRENT_CONFIG['llm'],
+                    embedding_model=CURRENT_CONFIG['embedding_model']
+                )
+                logger.info("TopKLogSystem 初始化完成！")
+    
+    return _log_system_instance
+
+def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
+    """
+    调用 DeepSeek-R1 API（使用单例模式，避免重复初始化）
+    
+    Args:
+        prompt: 用户输入的问题
+        query_type: 查询类型（analysis, error_classification, performance_analysis, security_analysis）
+    
+    Returns:
+        LLM 的响应文本
+    """
+    # 获取全局单例实例（首次调用会初始化，后续直接复用）
+    system = get_log_system()
+    
+    # 执行查询
+    result = system.query(prompt, query_type=query_type)
     time.sleep(0.5)
-
+    
     print(result["response"])
     return result["response"]
 

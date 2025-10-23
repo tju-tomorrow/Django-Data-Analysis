@@ -43,8 +43,17 @@ class TopKLogSystem:
         embedding_model: str,
     ) -> None:
         # init models - 使用 llama-index 原生组件
-        self.llm = Ollama(model=llm, temperature=0.1, request_timeout=300.0,context_window=2048,num_ctx=2048)
-        self.embedding_model = OllamaEmbedding(model_name=embedding_model)
+        self.llm = Ollama(
+            model=llm, 
+            temperature=0.1, 
+            request_timeout=600.0,  # 增加超时时间到 10 分钟
+            context_window=4096,     # 增加上下文窗口
+            num_ctx=4096
+        )
+        self.embedding_model = OllamaEmbedding(
+            model_name=embedding_model,
+            request_timeout=300.0    # embedding 超时时间 5 分钟
+        )
 
         # init database
         Settings.llm = self.llm

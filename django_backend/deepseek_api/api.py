@@ -80,6 +80,8 @@ def chat(request, data: ChatIn):
     # 2. 解析参数（确保 session_id 有效）
     session_id = data.session_id.strip() or "default_session"
     user_input = data.user_input.strip()
+    query_type = data.query_type or "analysis"  # 获取查询类型，默认为 analysis
+    
     if not user_input:
         return 400, {"error": "请输入消息内容"}
     
@@ -94,6 +96,7 @@ def chat(request, data: ChatIn):
     # 拼接prompt：纯历史 + 当前用户输入（不含时间戳）
     prompt = pure_context + f"用户：{user_input}\n回复："
     logger.info(f"传递给大模型的prompt：\n{prompt}")  # 调试日志
+    logger.info(f"查询类型：{query_type}")  # 记录查询类型
     
     # 5. 调用大模型（带完整上下文）
     # 获取缓存时传入session_id和user
@@ -101,7 +104,7 @@ def chat(request, data: ChatIn):
     if cached_reply:
         reply = cached_reply
     else:
-        reply = deepseek_r1_api_call(prompt)
+        reply = deepseek_r1_api_call(prompt, query_type)  # 传递 query_type
         # 设置缓存时传入session_id和user
         set_cached_reply(prompt, reply, session_id, user)
     
