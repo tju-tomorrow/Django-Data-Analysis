@@ -7,9 +7,13 @@ from django.conf import settings
 from .schemas import LoginIn, LoginOut, ChatIn, ChatOut, HistoryOut, ErrorResponse
 from .models import APIKey
 from .services import get_or_create_session, deepseek_r1_api_call, get_cached_reply, set_cached_reply
+from .conversation_manager import ConversationManager, ConversationType
 from datetime import datetime
 import logging
 logger = logging.getLogger(__name__)
+
+# 初始化对话管理器
+conversation_manager = ConversationManager(max_context_length=4000, max_turns=10)
 
 api = NinjaAPI(title="KAI API", version="0.0.1")
 
@@ -109,26 +113,52 @@ def chat(request, data: ChatIn):
     else:
         print("📊 [历史内容] 空（新会话）")
     
-    # 4. 拼接上下文（历史记录 + 当前输入）→ 关键！
-    # 若 session.context 不为空，说明是旧会话（带历史）
-    # 从session获取纯净的对话历史（仅用户输入和回复）
-    pure_context = session.context
-    # 拼接prompt：纯历史 + 当前用户输入（不含时间戳）
-    prompt = pure_context + f"用户：{user_input}\n回复："
+    # 4. 智能上下文管理 → 新增！
+    print(f"\n🧠 [智能对话管理] 开始分析对话类型和上下文...")
+    
+    # 解析历史对话
+    historical_turns = conversation_manager.parse_conversation_history(session.context)
+    print(f"🧠 [历史解析] 解析出 {len(historical_turns)} 轮历史对话")
+    
+    # 分类当前对话类型
+    conversation_type = conversation_manager.classify_conversation_type(user_input, len(historical_turns) > 0)
+    print(f"🧠 [对话分类] 当前对话类型: {conversation_type.value}")
+    
+    # 压缩历史上下文
+    compressed_turns = conversation_manager.compress_context(historical_turns)
+    print(f"🧠 [上下文压缩] 压缩后保留 {len(compressed_turns)} 轮对话")
+    
+    # 判断是否需要RAG检索
+    use_rag = conversation_manager.should_use_rag(conversation_type, user_input)
+    print(f"🧠 [RAG决策] 是否使用RAG检索: {use_rag}")
+    
+    # 构建LLM上下文
+    llm_context = conversation_manager.build_context_for_llm(compressed_turns, user_input, conversation_type)
     
     print(f"\n🔧 [上下文构建]")
-    print(f"   历史上下文长度: {len(pure_context)} 字符")
-    print(f"   完整prompt长度: {len(prompt)} 字符")
-    print(f"🔧 [完整Prompt] ↓↓↓")
+    print(f"   原始历史长度: {len(session.context)} 字符")
+    print(f"   压缩后长度: {len(llm_context)} 字符")
+    print(f"   对话类型: {conversation_type.value}")
+    print(f"   使用RAG: {use_rag}")
+    print(f"🔧 [LLM上下文] ↓↓↓")
     print("-" * 60)
-    print(prompt)
+    print(llm_context)
     print("-" * 60)
+    
+    # 根据对话类型选择不同的处理逻辑
+    if use_rag:
+        # 使用RAG + 对话历史
+        prompt = llm_context  # 对话历史作为基础上下文
+        print(f"🔧 [RAG模式] 将使用对话历史 + RAG检索结果")
+    else:
+        # 纯对话模式，不使用RAG
+        prompt = llm_context
+        print(f"🔧 [对话模式] 仅使用对话历史，不进行RAG检索")
     
     logger.info(f"传递给大模型的prompt：\n{prompt}")  # 调试日志
     logger.info(f"查询类型：{query_type}")  # 记录查询类型
     
-    # 5. 调用大模型（带完整上下文）
-    # 获取缓存时传入session_id和user
+    # 5. 调用大模型（根据模式选择不同策略）
     print(f"\n🔍 [缓存检查] 检查是否有缓存回复...")
     cached_reply = get_cached_reply(prompt, session_id, user)
     if cached_reply:
@@ -137,28 +167,58 @@ def chat(request, data: ChatIn):
         print(f"💾 [缓存回复] {reply[:100]}{'...' if len(reply) > 100 else ''}")
     else:
         print(f"❌ [缓存未命中] 调用大模型API...")
-        reply = deepseek_r1_api_call(prompt, query_type)  # 传递 query_type
+        
+        if use_rag:
+            # RAG模式：传递对话历史给RAG系统
+            print(f"🔍 [RAG模式] 使用RAG检索 + 对话历史")
+            reply = deepseek_r1_api_call(prompt, query_type)  # RAG系统会处理检索
+        else:
+            # 纯对话模式：直接调用大模型
+            print(f"💬 [对话模式] 纯对话，不使用RAG检索")
+            # 这里可以调用一个简化的LLM接口，不进行RAG检索
+            reply = deepseek_r1_api_call(prompt, "general_chat")  # 使用通用对话模式
+        
         print(f"🤖 [大模型回复] 长度: {len(reply)} 字符")
         print(f"🤖 [回复内容] {reply[:100]}{'...' if len(reply) > 100 else ''}")
+        
         # 设置缓存时传入session_id和user
         set_cached_reply(prompt, reply, session_id, user)
         print(f"💾 [缓存保存] 回复已缓存")
     
-    # 6. 保存上下文到会话（更新历史记录）
-    print(f"\n💾 [上下文更新] 保存新的对话到数据库...")
+    # 6. 智能上下文保存 → 改进！
+    print(f"\n💾 [智能上下文保存] 使用对话管理器更新历史...")
+    
+    # 添加新的对话轮次
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    metadata = {
+        "query_type": query_type,
+        "conversation_type": conversation_type.value,
+        "used_rag": use_rag,
+        "original_turns": len(historical_turns),
+        "compressed_turns": len(compressed_turns)
+    }
+    
+    updated_turns = conversation_manager.add_new_turn(
+        compressed_turns, user_input, reply, conversation_type, timestamp, metadata
+    )
+    
+    print(f"💾 [对话轮次] 添加新轮次，当前总轮次: {len(updated_turns)}")
+    print(f"💾 [元数据] {metadata}")
+    
+    # 格式化为存储字符串
+    new_context = conversation_manager.format_context_for_storage(updated_turns)
     old_context_length = len(session.context)
-    new_entry = f"用户：{user_input}\n回复：{reply}\n"
-    session.context += new_entry
-    new_context_length = len(session.context)
+    new_context_length = len(new_context)
     
-    print(f"💾 [内存更新] 上下文长度: {old_context_length} → {new_context_length} 字符")
-    print(f"💾 [新增条目] {new_entry.strip()}")
-    print(f"💾 [数据库保存] 调用 session.save() 持久化到数据库...")
+    print(f"💾 [上下文更新] 长度变化: {old_context_length} → {new_context_length} 字符")
+    print(f"💾 [压缩效果] 压缩比: {new_context_length/max(old_context_length, 1):.2f}")
     
-    session.save()  # 持久化到数据库
+    # 更新会话
+    session.context = new_context
+    session.save()
     
-    print(f"💾 [保存完成] 会话已成功保存到数据库")
-    print(f"💾 [最终状态] 会话ID: {session.session_id}, 总长度: {len(session.context)} 字符")
+    print(f"💾 [保存完成] 智能上下文已保存到数据库")
+    print(f"💾 [最终状态] 会话ID: {session.session_id}, 轮次: {len(updated_turns)}, 长度: {len(session.context)} 字符")
     
     # session.update_context(user_input, reply)
     
