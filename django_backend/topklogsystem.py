@@ -299,19 +299,56 @@ class TopKLogSystem:
         
         Args:
             query: 用户查询
-            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            query_type: 查询类型，可选值: analysis, general_chat, multi_turn, error_classification, performance_analysis, security_analysis
             
         Returns:
             包含响应和检索统计的字典
         """
-        log_results = self.retrieve_logs(query)
-        response = self.generate_response(query, log_results, query_type)  # 生成响应
+        # 根据查询类型决定是否进行RAG检索
+        if query_type == "general_chat":
+            # 通用对话模式，不进行RAG检索
+            print(f"💬 [通用对话模式] 跳过RAG检索，直接调用LLM")
+            response = self._generate_general_response(query)
+            return {
+                "response": response,
+                "retrieval_stats": 0,
+                "query_type": query_type
+            }
+        else:
+            # 日志分析模式，进行RAG检索
+            print(f"🔍 [日志分析模式] 进行RAG检索")
+            log_results = self.retrieve_logs(query)
+            response = self.generate_response(query, log_results, query_type)
+            
+            return {
+                "response": response,
+                "retrieval_stats": len(log_results),
+                "query_type": query_type
+            }
+    
+    def _generate_general_response(self, query: str) -> str:
+        """
+        生成通用对话回复（不使用RAG）
+        
+        Args:
+            query: 用户查询
+            
+        Returns:
+            LLM生成的回复
+        """
+        # 构建简单的对话prompt
+        simple_prompt = f"""你是一个专业的技术助手。请直接回答用户的问题，提供准确、有用的信息。
 
-        return {
-            "response": response,
-            "retrieval_stats": len(log_results),
-            "query_type": query_type
-        }
+用户问题：{query}
+
+请回答："""
+        
+        try:
+            response = self.llm.complete(simple_prompt)
+            return response.text
+        except Exception as e:
+            logger.error(f"通用对话LLM调用失败: {e}")
+            return f"抱歉，我无法回答您的问题。错误信息: {str(e)}"
 
     # 示例使用
 
