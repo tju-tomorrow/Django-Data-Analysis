@@ -381,3 +381,4 @@ class ConversationManager:
         
         updated_turns = turns + [new_turn]
         return self.compress_context(updated_turns)
+
