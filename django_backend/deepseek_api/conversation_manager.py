@@ -298,7 +298,7 @@ class ConversationManager:
         """
         # 使用意图分类器的结果
         intent_result = classify_user_intent(user_input)
-        use_rag = is_rag_required(intent_result)
+        use_rag = is_rag_required(intent_result, user_input)
         
         # 决策详情
         decision_details = {

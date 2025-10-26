@@ -75,8 +75,8 @@ class LightweightIntentClassifier:
                 "patterns": ["怎么做", "如何", "怎样"]
             },
             IntentType.GREETING: {
-                "keywords": ["你好", "hello", "hi", "嗨", "早上好", "下午好", "晚上好"],
-                "patterns": ["你好", "hello"]
+                "keywords": ["你好", "hello", "hi", "嗨", "早上好", "下午好", "晚上好", "how are you", "how's it going", "good morning", "good afternoon", "good evening"],
+                "patterns": ["你好", "hello", "hi", "how are you", "how's", "good morning", "good afternoon", "good evening"]
             }
         }
     
@@ -129,18 +129,33 @@ class LightweightIntentClassifier:
         try:
             # 构建意图分类的prompt
             prompt = f"""请分析以下用户输入的意图，从这些类型中选择一个：
-1. general_qa - 通用问答
-2. log_analysis - 日志分析  
-3. follow_up - 追问澄清
-4. summary_request - 摘要请求
-5. technical_help - 技术帮助
-6. greeting - 问候
+
+1. greeting - 问候语
+   示例：你好、hello、hi、how are you、早上好、晚上好
+   
+2. general_qa - 通用问答
+   示例：什么是AI、天气怎么样、推荐一本书
+   
+3. log_analysis - 日志分析
+   示例：分析这个错误日志、查看系统异常、日志中的问题
+   
+4. technical_help - 技术帮助
+   示例：如何配置数据库、怎么解决连接问题、安装教程
+   
+5. follow_up - 追问澄清
+   示例：那个错误怎么解决、还有其他方法吗、详细说明一下
+   
+6. summary_request - 摘要请求
+   示例：总结一下、概括要点、简要说明
+   
 7. unknown - 未知意图
 
 用户输入："{text}"
 
+请仔细分析用户输入，特别注意问候语（如hello、hi、how are you等）应该归类为greeting。
+
 请只回答意图类型和置信度（0-1），格式：意图类型,置信度
-例如：log_analysis,0.85"""
+例如：greeting,0.95"""
 
             # 调用Ollama API
             payload = {
@@ -299,7 +314,7 @@ class LightweightIntentClassifier:
                 intent=intent,
                 confidence=confidence,
                 processing_time=processing_time,
-                model_used=self.model_name if self.model else "keyword_fallback"
+                model_used=self.model_name if self._initialized else "keyword_fallback"
             )
             
         except Exception as e:
@@ -360,7 +375,7 @@ def classify_user_intent(text: str) -> IntentResult:
     classifier = get_intent_classifier()
     return classifier.classify_intent(text)
 
-def is_rag_required(intent_result: IntentResult) -> bool:
+def is_rag_required(intent_result: IntentResult, text: str = "") -> bool:
     """判断是否需要RAG检索"""
     rag_intents = {
         IntentType.LOG_ANALYSIS,
@@ -372,7 +387,7 @@ def is_rag_required(intent_result: IntentResult) -> bool:
         return True
     
     # 低置信度的未知意图，如果包含技术关键词也可能需要RAG
-    if intent_result.intent == IntentType.UNKNOWN and intent_result.confidence < 0.5:
+    if intent_result.intent == IntentType.UNKNOWN and intent_result.confidence < 0.5 and text:
         technical_keywords = ["错误", "异常", "性能", "优化", "配置", "error", "exception", "performance"]
         return any(keyword in text.lower() for keyword in technical_keywords)
     
