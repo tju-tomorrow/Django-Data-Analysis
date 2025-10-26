@@ -120,17 +120,21 @@ def chat(request, data: ChatIn):
     historical_turns = conversation_manager.parse_conversation_history(session.context)
     print(f"🧠 [历史解析] 解析出 {len(historical_turns)} 轮历史对话")
     
-    # 分类当前对话类型
-    conversation_type = conversation_manager.classify_conversation_type(user_input, len(historical_turns) > 0)
-    print(f"🧠 [对话分类] 当前对话类型: {conversation_type.value}")
+    # 使用轻量级模型分类当前对话类型
+    conversation_type, classification_details = conversation_manager.classify_conversation_type(user_input, len(historical_turns) > 0)
+    print(f"🧠 [智能分类] 对话类型: {conversation_type.value}")
+    print(f"🧠 [分类详情] 意图: {classification_details['intent_type']}, 置信度: {classification_details['confidence']:.3f}")
+    print(f"🧠 [模型信息] 使用模型: {classification_details['model_used']}, 耗时: {classification_details['processing_time']:.3f}秒")
     
     # 压缩历史上下文
     compressed_turns = conversation_manager.compress_context(historical_turns)
     print(f"🧠 [上下文压缩] 压缩后保留 {len(compressed_turns)} 轮对话")
     
-    # 判断是否需要RAG检索
-    use_rag = conversation_manager.should_use_rag(conversation_type, user_input)
-    print(f"🧠 [RAG决策] 是否使用RAG检索: {use_rag}")
+    # 使用意图分类结果判断是否需要RAG检索
+    use_rag, rag_decision = conversation_manager.should_use_rag(conversation_type, user_input, classification_details)
+    print(f"🧠 [智能RAG决策] 使用RAG: {use_rag}")
+    print(f"🧠 [决策原因] {rag_decision['decision_reason']}")
+    print(f"🧠 [决策详情] 意图置信度: {rag_decision['intent_confidence']:.3f}, 意图类型: {rag_decision['intent_type']}")
     
     # 构建LLM上下文
     llm_context = conversation_manager.build_context_for_llm(compressed_turns, user_input, conversation_type)
@@ -195,7 +199,10 @@ def chat(request, data: ChatIn):
         "conversation_type": conversation_type.value,
         "used_rag": use_rag,
         "original_turns": len(historical_turns),
-        "compressed_turns": len(compressed_turns)
+        "compressed_turns": len(compressed_turns),
+        # 新增：意图分类详情
+        "intent_classification": classification_details,
+        "rag_decision": rag_decision
     }
     
     updated_turns = conversation_manager.add_new_turn(

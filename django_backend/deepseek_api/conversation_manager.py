@@ -8,15 +8,19 @@ import logging
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from .intent_classifier import get_intent_classifier, IntentType, classify_user_intent, is_rag_required
 
 logger = logging.getLogger(__name__)
 
 class ConversationType(Enum):
-    """对话类型枚举"""
+    """对话类型枚举（保持向后兼容）"""
     GENERAL_QA = "general_qa"           # 通用问答
     LOG_ANALYSIS = "log_analysis"       # 日志分析
     FOLLOW_UP = "follow_up"            # 追问/澄清
     SUMMARY_REQUEST = "summary_request" # 摘要请求
+    TECHNICAL_HELP = "technical_help"   # 技术帮助
+    GREETING = "greeting"               # 问候
+    UNKNOWN = "unknown"                 # 未知意图
 
 @dataclass
 class ConversationTurn:
@@ -41,36 +45,53 @@ class ConversationManager:
         self.max_context_length = max_context_length
         self.max_turns = max_turns
     
-    def classify_conversation_type(self, user_input: str, has_history: bool) -> ConversationType:
+    def classify_conversation_type(self, user_input: str, has_history: bool) -> Tuple[ConversationType, Dict]:
         """
-        分类对话类型
+        使用轻量级模型分类对话类型
         
         Args:
             user_input: 用户输入
             has_history: 是否有历史对话
             
         Returns:
-            对话类型
+            对话类型和分类详情
         """
-        user_input_lower = user_input.lower()
+        # 使用轻量级意图分类器
+        intent_result = classify_user_intent(user_input)
         
-        # 检查是否是追问
-        follow_up_keywords = ['继续', '详细', '更多', '具体', '怎么', '为什么', '那么', '还有']
-        if has_history and any(keyword in user_input for keyword in follow_up_keywords):
-            return ConversationType.FOLLOW_UP
+        # 映射IntentType到ConversationType
+        intent_mapping = {
+            IntentType.GENERAL_QA: ConversationType.GENERAL_QA,
+            IntentType.LOG_ANALYSIS: ConversationType.LOG_ANALYSIS,
+            IntentType.FOLLOW_UP: ConversationType.FOLLOW_UP,
+            IntentType.SUMMARY_REQUEST: ConversationType.SUMMARY_REQUEST,
+            IntentType.TECHNICAL_HELP: ConversationType.TECHNICAL_HELP,
+            IntentType.GREETING: ConversationType.GENERAL_QA,  # 问候归类为通用问答
+            IntentType.UNKNOWN: ConversationType.GENERAL_QA
+        }
         
-        # 检查是否是摘要请求
-        summary_keywords = ['总结', '摘要', '概括', 'summary', 'summarize']
-        if any(keyword in user_input_lower for keyword in summary_keywords):
-            return ConversationType.SUMMARY_REQUEST
+        conversation_type = intent_mapping.get(intent_result.intent, ConversationType.GENERAL_QA)
         
-        # 检查是否是日志分析
-        log_keywords = ['日志', '错误', '异常', 'error', 'exception', 'log', '分析', 'analyze']
-        if any(keyword in user_input_lower for keyword in log_keywords):
-            return ConversationType.LOG_ANALYSIS
+        # 如果有历史对话，进一步判断是否是追问
+        if has_history and intent_result.intent == IntentType.FOLLOW_UP:
+            conversation_type = ConversationType.FOLLOW_UP
+        elif has_history and intent_result.confidence < 0.5:
+            # 低置信度时，检查是否包含追问特征
+            follow_up_indicators = ['继续', '详细', '更多', '具体', '再', '进一步']
+            if any(indicator in user_input for indicator in follow_up_indicators):
+                conversation_type = ConversationType.FOLLOW_UP
         
-        # 默认为通用问答
-        return ConversationType.GENERAL_QA
+        # 返回分类结果和详细信息
+        classification_details = {
+            "intent_type": intent_result.intent.value,
+            "confidence": intent_result.confidence,
+            "processing_time": intent_result.processing_time,
+            "model_used": intent_result.model_used,
+            "has_history": has_history,
+            "final_type": conversation_type.value
+        }
+        
+        return conversation_type, classification_details
     
     def parse_conversation_history(self, context_string: str) -> List[ConversationTurn]:
         """
@@ -263,28 +284,58 @@ class ConversationManager:
             context_parts.append("回复：")
             return "\n".join(context_parts)
     
-    def should_use_rag(self, conversation_type: ConversationType, user_input: str) -> bool:
+    def should_use_rag(self, conversation_type: ConversationType, user_input: str, classification_details: Dict = None) -> Tuple[bool, Dict]:
         """
-        判断是否需要使用RAG检索
+        使用意图分类结果判断是否需要RAG检索
         
         Args:
             conversation_type: 对话类型
             user_input: 用户输入
+            classification_details: 分类详情
             
         Returns:
-            是否使用RAG
+            是否使用RAG和决策详情
         """
-        # 日志分析类型的对话需要RAG
-        if conversation_type == ConversationType.LOG_ANALYSIS:
-            return True
+        # 使用意图分类器的结果
+        intent_result = classify_user_intent(user_input)
+        use_rag = is_rag_required(intent_result)
         
-        # 包含具体技术问题的通用问答也可能需要RAG
-        technical_indicators = ['错误', '异常', '性能', '优化', 'error', 'exception', 'performance']
-        if any(indicator in user_input.lower() for indicator in technical_indicators):
-            return True
+        # 决策详情
+        decision_details = {
+            "intent_confidence": intent_result.confidence,
+            "intent_type": intent_result.intent.value,
+            "conversation_type": conversation_type.value,
+            "use_rag": use_rag,
+            "decision_reason": self._get_rag_decision_reason(intent_result, conversation_type)
+        }
         
-        # 追问和摘要通常不需要新的RAG检索
-        return False
+        # 特殊情况处理
+        if conversation_type == ConversationType.FOLLOW_UP:
+            # 追问通常不需要新的RAG检索，除非是技术追问
+            if intent_result.intent in [IntentType.LOG_ANALYSIS, IntentType.TECHNICAL_HELP]:
+                use_rag = True
+                decision_details["decision_reason"] = "技术追问需要RAG检索"
+            else:
+                use_rag = False
+                decision_details["decision_reason"] = "普通追问基于历史对话"
+        
+        elif conversation_type == ConversationType.SUMMARY_REQUEST:
+            # 摘要请求不需要RAG
+            use_rag = False
+            decision_details["decision_reason"] = "摘要请求基于历史对话"
+        
+        return use_rag, decision_details
+    
+    def _get_rag_decision_reason(self, intent_result, conversation_type: ConversationType) -> str:
+        """获取RAG决策原因"""
+        if intent_result.intent == IntentType.LOG_ANALYSIS:
+            return f"日志分析意图，置信度: {intent_result.confidence:.2f}"
+        elif intent_result.intent == IntentType.TECHNICAL_HELP:
+            return f"技术帮助意图，置信度: {intent_result.confidence:.2f}"
+        elif intent_result.confidence < 0.5:
+            return f"低置信度意图({intent_result.confidence:.2f})，可能需要RAG"
+        else:
+            return f"通用对话意图({intent_result.intent.value})，不需要RAG"
     
     def format_context_for_storage(self, turns: List[ConversationTurn]) -> str:
         """
