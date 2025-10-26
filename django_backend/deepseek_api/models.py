@@ -68,22 +68,42 @@ class ConversationSession(models.Model):
     def update_context(self, user_input, bot_reply):
         """原子更新上下文，避免并发覆盖"""
         new_entry = f"用户：{user_input}\n回复：{bot_reply}\n"
+        
+        print(f"\n💾 [模型层] ConversationSession.update_context() 被调用")
+        print(f"💾 [会话信息] ID: {self.pk}, session_id: '{self.session_id}', user: '{self.user.user}'")
+        print(f"💾 [更新前长度] {len(self.context)} 字符")
+        print(f"💾 [新增条目] {new_entry.strip()}")
+        
         # 数据库层面拼接，而非内存中
         ConversationSession.objects.filter(
             pk=self.pk,  # 精确匹配当前会话
             user=self.user  # 确保用户一致
         ).update(context=F('context') + new_entry)
+        
         # 刷新实例，获取更新后的值
+        old_length = len(self.context)
         self.refresh_from_db()
+        new_length = len(self.context)
+        
+        print(f"💾 [数据库更新] 原子操作完成")
+        print(f"💾 [更新后长度] {old_length} → {new_length} 字符")
+        print(f"💾 [实例刷新] 从数据库重新加载最新数据")
 
-        # import logging
-        # logger = logging.getLogger(__name__)
-        # logger.info(f"更新会话 {self.session_id}（用户：{self.user.key}）：{new_entry}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"更新会话 {self.session_id}（用户：{self.user.user}）：{new_entry}")
     
     def clear_context(self):
         """清空对话上下文"""
+        print(f"\n🗑️ [模型层] ConversationSession.clear_context() 被调用")
+        print(f"🗑️ [会话信息] ID: {self.pk}, session_id: '{self.session_id}', user: '{self.user.user}'")
+        print(f"🗑️ [清空前长度] {len(self.context)} 字符")
+        
         self.context = ""
         self.save()
+        
+        print(f"🗑️ [清空完成] 上下文已清空并保存到数据库")
+        print(f"🗑️ [清空后长度] {len(self.context)} 字符")
     
     def __str__(self):
         return self.session_id
