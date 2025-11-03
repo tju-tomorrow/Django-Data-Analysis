@@ -8,32 +8,30 @@
         @delete="handleDeleteSession"
         @create="handleCreateSession"
       />
-      
+
       <div class="user-info">
         <div class="user-actions">
           <button class="secondary" @click="handleClearHistory">
             清空当前会话
           </button>
-          <button class="danger" @click="handleLogout">
-            退出登录
-          </button>
+          <button class="danger" @click="handleLogout">退出登录</button>
         </div>
       </div>
     </div>
-    
+
     <div class="chat-area">
       <div class="chat-header">
         <h1>DeepSeek-KAI.v.0.0.1 聊天</h1>
         <h2>当前会话: {{ currentSession }}</h2>
       </div>
-      
+
       <div v-if="error" class="error-message">{{ error }}</div>
-      
+
       <div class="messages-container">
         <div v-if="messages.length === 0" class="empty-state">
           开始与 DeepSeek-KAI.v.0.0.1 的对话吧！
         </div>
-        
+
         <ChatMessage
           v-for="msg in messages"
           :key="msg.id"
@@ -41,29 +39,26 @@
           :content="msg.content"
           :timestamp="msg.timestamp"
         />
-        
+
         <div v-if="loading" class="loading-indicator">
           <div class="loading"></div>
           <p>DeepSeek-KAI.v.0.0.1 正在思考...</p>
         </div>
       </div>
-      
-      <ChatInput
-        :loading="loading"
-        @send="handleSendMessage"
-      />
+
+      <ChatInput :loading="loading" @send="handleSendMessage" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useStore } from '../store';
-import api from '../api';
-import SessionList from '../components/SessionList.vue';
-import ChatMessage from '../components/ChatMessage.vue';
-import ChatInput from '../components/ChatInput.vue';
+import { onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
+import { useStore } from "../store";
+import api from "../api";
+import SessionList from "../components/SessionList.vue";
+import ChatMessage from "../components/ChatMessage.vue";
+import ChatInput from "../components/ChatInput.vue";
 
 const store = useStore();
 const router = useRouter();
@@ -82,7 +77,7 @@ const loadHistory = async (sessionId) => {
     const response = await api.getHistory(sessionId);
     store.loadHistory(sessionId, response.data.history);
   } catch (err) {
-    store.setError(err.response?.data?.error || '加载历史记录失败');
+    store.setError(err.response?.data?.error || "加载历史记录失败");
   } finally {
     store.setLoading(false);
   }
@@ -106,7 +101,7 @@ const handleDeleteSession = async (sessionId) => {
     store.removeSession(sessionId);
     store.clearSessionMessages(sessionId);
   } catch (err) {
-    store.setError(err.response?.data?.error || '删除会话失败');
+    store.setError(err.response?.data?.error || "删除会话失败");
   }
 };
 
@@ -117,18 +112,18 @@ const handleCreateSession = (sessionId) => {
 };
 
 // 处理发送消息
-const handleSendMessage = async (content) => {
+const handleSendMessage = async (content, queryType) => {
   // 添加用户消息到界面
   store.addMessage(currentSession.value, true, content);
-  
+
   try {
     store.setLoading(true);
     // 调用API发送消息
-    const response = await api.chat(currentSession.value, content);
+    const response = await api.chat(currentSession.value, content, queryType);
     // 添加机器人回复到界面
     store.addMessage(currentSession.value, false, response.data.reply);
   } catch (err) {
-    store.setError(err.response?.data?.error || '发送消息失败');
+    store.setError(err.response?.data?.error || "发送消息失败");
   } finally {
     store.setLoading(false);
   }
@@ -141,16 +136,16 @@ const handleClearHistory = async () => {
       await api.clearHistory(currentSession.value);
       store.clearSessionMessages(currentSession.value);
     } catch (err) {
-      store.setError(err.response?.data?.error || '清空历史记录失败');
+      store.setError(err.response?.data?.error || "清空历史记录失败");
     }
   }
 };
 
 // 处理退出登录
 const handleLogout = () => {
-  if (confirm('确定要退出登录吗？')) {
+  if (confirm("确定要退出登录吗？")) {
     store.clearApiKey();
-    router.push('/login');
+    router.push("/login");
   }
 };
 </script>

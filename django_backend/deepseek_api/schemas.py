@@ -12,6 +12,7 @@ class LoginOut(Schema):
 class ChatIn(Schema):
     session_id: str = "default_session"
     user_input: str
+    query_type: str = "analysis"  # 查询类型：analysis, error_classification, performance_analysis, security_analysis
 
 class ChatOut(Schema):
     reply: str

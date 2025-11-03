@@ -8,7 +8,7 @@ os.environ["CHROMA_TELEMETRY_ENABLED"] = "false"
 import json
 import logging
 import pandas as pd
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # llama-index & chroma
 import chromadb
@@ -21,6 +21,14 @@ from llama_index.embeddings.ollama import OllamaEmbedding  # 使用 llama-index 
 
 # langchain (仅用于 prompt)
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
+
+# 导入自定义 prompt 模板
+try:
+    from deepseek_api.prompt_templates import PromptTemplates
+    prompt_templates = PromptTemplates()
+except ImportError:
+    # 如果未安装或找不到模块，使用内置的简单模板
+    prompt_templates = None
 
 # 日志
 logging.basicConfig(level=logging.INFO)
@@ -35,8 +43,17 @@ class TopKLogSystem:
         embedding_model: str,
     ) -> None:
         # init models - 使用 llama-index 原生组件
-        self.llm = Ollama(model=llm, temperature=0.1, request_timeout=300.0,context_window=2048,num_ctx=2048)
-        self.embedding_model = OllamaEmbedding(model_name=embedding_model)
+        self.llm = Ollama(
+            model=llm, 
+            temperature=0.1, 
+            request_timeout=600.0,  # 增加超时时间到 10 分钟
+            context_window=4096,     # 增加上下文窗口
+            num_ctx=4096
+        )
+        self.embedding_model = OllamaEmbedding(
+            model_name=embedding_model,
+            request_timeout=300.0    # embedding 超时时间 5 分钟
+        )
 
         # init database
         Settings.llm = self.llm
@@ -54,6 +71,17 @@ class TopKLogSystem:
 
         chroma_client = chromadb.PersistentClient(path=vector_store_path)  # chromadb 持久化
 
+        # 检查是否已存在集合
+        collection_exists = False
+        try:
+            existing_collections = chroma_client.list_collections()
+            collection_exists = any(c.name == "log_collection" for c in existing_collections)
+            if collection_exists:
+                logger.info("找到现有向量索引，直接加载...")
+        except Exception as e:
+            logger.warning(f"检查集合时出错: {e}")
+            collection_exists = False
+
         # ChromaVectorStore 将 collection 与 store 绑定
         # 也是将 Chroma 包装为 llama-index 的接口
         # StorageContext存储上下文， 包含Vector Store、Document Store、Index Store 等
@@ -62,13 +90,26 @@ class TopKLogSystem:
         # 构建 log 库 index
         log_vector_store = ChromaVectorStore(chroma_collection=log_collection)
         log_storage_context = StorageContext.from_defaults(vector_store=log_vector_store)
-        if log_documents := self._load_documents(self.log_path):
-            self.log_index = VectorStoreIndex.from_documents(
-                log_documents,
-                storage_context=log_storage_context,
-                show_progress=True,
+        
+        # 检查集合是否为空
+        is_empty = len(log_collection.get(limit=1)["ids"]) == 0
+        
+        # 只有当集合不存在或为空时才重建索引
+        if not collection_exists or is_empty:
+            logger.info("向量索引不存在或为空，开始构建...")
+            if log_documents := self._load_documents(self.log_path):
+                self.log_index = VectorStoreIndex.from_documents(
+                    log_documents,
+                    storage_context=log_storage_context,
+                    show_progress=True,
+                )
+                logger.info(f"日志库索引构建完成，共 {len(log_documents)} 条日志")
+        else:
+            # 直接使用现有索引
+            self.log_index = VectorStoreIndex.from_vector_store(
+                log_vector_store,
             )
-            logger.info(f"日志库索引构建完成，共 {len(log_documents)} 条日志")
+            logger.info("成功加载现有向量索引，跳过构建步骤")
 
     @staticmethod
     # 加载文档数据
@@ -105,7 +146,11 @@ class TopKLogSystem:
 
     def retrieve_logs(self, query: str, top_k: int = 10) -> List[Dict]:
         if not self.log_index:
-            return []
+            logger.warning("索引未初始化，尝试重新构建...")
+            self._build_vectorstore()
+            if not self.log_index:
+                logger.error("索引构建失败")
+                return []
 
         try:
             retriever = self.log_index.as_retriever(similarity_top_k=top_k)  # topK
@@ -124,8 +169,19 @@ class TopKLogSystem:
 
             # LLM 生成响应
 
-    def generate_response(self, query: str, context: Dict) -> str:
-        prompt = self._build_prompt_string(query, context)  # 构建提示词字符串
+    def generate_response(self, query: str, context: Dict, query_type: str = "analysis") -> str:
+        """
+        使用 LLM 生成响应
+        
+        Args:
+            query: 用户查询
+            context: 检索到的日志上下文
+            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            
+        Returns:
+            LLM 生成的响应文本
+        """
+        prompt = self._build_prompt_string(query, context, query_type)  # 构建提示词字符串
 
         try:
             response = self.llm.complete(prompt)  # 使用 complete 而不是 invoke
@@ -136,33 +192,163 @@ class TopKLogSystem:
 
             # 构建 prompt 字符串
 
-    def _build_prompt_string(self, query: str, context: Dict) -> str:
+    def _build_prompt_string(self, query: str, context: Dict, query_type: str = "analysis") -> str:
+        """
+        构建提示词字符串
+        
+        Args:
+            query: 用户查询
+            context: 检索到的日志上下文
+            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            
+        Returns:
+            构建好的提示词
+        """
         # 构建日志上下文
-        log_context = "## 相关历史日志参考:\n"
+        log_context = ""
         for i, log in enumerate(context, 1):
             log_context += f"日志 {i} : {log['content']}\n\n"
-
-        # 完整 prompt
+        
+        # 使用 prompt 模板
+        if prompt_templates:
+            # 使用专业模板库
+            try:
+                prompt = prompt_templates.get_template_by_type(
+                    query_type=query_type,
+                    log_context=log_context,
+                    query=query
+                )
+                return prompt
+            except Exception as e:
+                logger.error(f"使用模板失败: {e}，回退到内置模板")
+        
+        # 内置的默认模板（作为备份）
         prompt = f"""
+你是一个专业的日志分析专家，擅长从海量日志中发现问题、定位根因、提供解决方案。
+
+你的分析应该：
+1. 结构化：使用清晰的段落和标题
+2. 数据驱动：引用具体的日志证据
+3. 深入：从现象到根因，再到解决方案
+4. 可操作：提供具体的修复建议
+
+## 相关历史日志参考:
 {log_context}
 
 ## 当前需要分析的问题:
 {query}
 
-请基于以上信息，提供详细的分析报告:
+## 分析要求
+请按照以下步骤进行分析：
+
+### 第一步：问题识别
+从日志中提取关键错误信息、异常模式、性能指标
+
+### 第二步：根因分析
+结合日志时间线、错误堆栈、系统状态，推断问题根本原因
+
+### 第三步：影响评估
+评估问题的严重程度、影响范围、业务影响
+
+### 第四步：解决方案
+提供分层解决方案：
+- 紧急修复（立即可执行）
+- 短期优化（一周内）
+- 长期改进（架构层面）
+
+### 第五步：预防措施
+建议监控指标、告警规则、代码规范
+
+## 输出格式要求
+请使用 Markdown 格式，包含以下部分：
+- **问题摘要**：简明概述问题
+- **根因分析**：详细分析问题原因
+- **影响范围**：评估影响范围和严重程度
+- **解决方案**：分层次提供解决建议
+- **预防措施**：防止类似问题再次发生的建议
+
+## Few-shot 示例
+<example>
+问题：数据库连接池耗尽
+日志：HikariPool-1 - Connection is not available, request timed out after 30000ms
+
+分析：
+**问题摘要**
+系统出现数据库连接池耗尽，导致新请求无法获取连接
+
+**根因分析**
+1. 连接泄漏：部分代码未正确关闭连接
+2. 慢查询：某些查询执行时间过长，占用连接
+3. 并发量激增：流量突增超过连接池容量
+
+**解决方案**
+- 紧急：重启服务释放连接，临时扩大连接池
+- 短期：代码审查，添加连接自动回收机制
+- 长期：引入读写分离，优化慢查询
+</example>
+
+请开始你的分析：
 """
         return prompt
 
         # 执行查询
 
-    def query(self, query: str) -> Dict:
-        log_results = self.retrieve_logs(query)
-        response = self.generate_response(query, log_results)  # 生成响应
+    def query(self, query: str, query_type: str = "analysis") -> Dict:
+        """
+        执行查询并生成响应
+        
+        Args:
+            query: 用户查询
+            query_type: 查询类型，可选值: analysis, general_chat, multi_turn, error_classification, performance_analysis, security_analysis
+            
+        Returns:
+            包含响应和检索统计的字典
+        """
+        # 根据查询类型决定是否进行RAG检索
+        if query_type == "general_chat":
+            # 通用对话模式，不进行RAG检索
+            print(f"💬 [通用对话模式] 跳过RAG检索，直接调用LLM")
+            response = self._generate_general_response(query)
+            return {
+                "response": response,
+                "retrieval_stats": 0,
+                "query_type": query_type
+            }
+        else:
+            # 日志分析模式，进行RAG检索
+            print(f"🔍 [日志分析模式] 进行RAG检索")
+            log_results = self.retrieve_logs(query)
+            response = self.generate_response(query, log_results, query_type)
+            
+            return {
+                "response": response,
+                "retrieval_stats": len(log_results),
+                "query_type": query_type
+            }
+    
+    def _generate_general_response(self, query: str) -> str:
+        """
+        生成通用对话回复（不使用RAG）
+        
+        Args:
+            query: 用户查询
+            
+        Returns:
+            LLM生成的回复
+        """
+        # 构建简单的对话prompt
+        simple_prompt = f"""你是一个专业的技术助手。请直接回答用户的问题，提供准确、有用的信息。
 
-        return {
-            "response": response,
-            "retrieval_stats": len(log_results)
-        }
+用户问题：{query}
+
+请回答："""
+        
+        try:
+            response = self.llm.complete(simple_prompt)
+            return response.text
+        except Exception as e:
+            logger.error(f"通用对话LLM调用失败: {e}")
+            return f"抱歉，我无法回答您的问题。错误信息: {str(e)}"
 
     # 示例使用
 
@@ -175,10 +361,29 @@ if __name__ == "__main__":
         embedding_model="bge-large"
     )
 
-    # 执行查询
+    # 基础日志分析示例
+    print("\n=== 基础日志分析示例 ===")
     query = "如何解决数据库连接池耗尽的问题？"
-    result = system.query(query)
-
+    result = system.query(query, query_type="analysis")
     print("查询:", query)
-    print("响应:", result["response"])
+    print("查询类型:", result["query_type"])
     print("检索统计:", result["retrieval_stats"])
+    print("响应:", result["response"])
+    
+    # 错误分类示例
+    print("\n=== 错误分类示例 ===")
+    query = "分析系统中的错误类型和严重程度"
+    result = system.query(query, query_type="error_classification")
+    print("查询:", query)
+    print("查询类型:", result["query_type"])
+    print("检索统计:", result["retrieval_stats"])
+    print("响应:", result["response"])
+    
+    # 性能分析示例
+    print("\n=== 性能分析示例 ===")
+    query = "分析系统性能瓶颈并提供优化建议"
+    result = system.query(query, query_type="performance_analysis")
+    print("查询:", query)
+    print("查询类型:", result["query_type"])
+    print("检索统计:", result["retrieval_stats"])
+    print("响应:", result["response"])
