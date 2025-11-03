@@ -22,6 +22,21 @@ from llama_index.embeddings.ollama import OllamaEmbedding  # 使用 llama-index 
 # langchain (仅用于 prompt)
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
 
+# 日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 导入高级 RAG 组件
+try:
+    from hybrid_retriever import HybridRetriever, AdvancedLogRetriever
+    from query_optimizer import QueryOptimizer, AdvancedQueryOptimizer
+    from reranker import create_reranker, RuleBasedReranker
+    ADVANCED_RAG_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"高级 RAG 组件导入失败: {e}")
+    logger.info("安装高级 RAG 依赖: pip install rank-bm25")
+    ADVANCED_RAG_AVAILABLE = False
+
 # 导入自定义 prompt 模板
 try:
     from deepseek_api.prompt_templates import PromptTemplates
@@ -41,6 +56,10 @@ class TopKLogSystem:
         log_path: str,
         llm: str,
         embedding_model: str,
+        use_advanced_rag: bool = True,  # 是否使用高级 RAG
+        retrieval_mode: str = "hybrid",  # 检索模式: "vector", "bm25", "hybrid"
+        enable_reranking: bool = True,   # 是否启用重排序
+        enable_query_optimization: bool = True,  # 是否启用查询优化
     ) -> None:
         # init models - 使用 llama-index 原生组件
         self.llm = Ollama(
@@ -62,7 +81,26 @@ class TopKLogSystem:
         self.log_path = log_path
         self.log_index = None
         self.vector_store = None
+        self.documents_list = []  # 存储文档列表（用于 BM25）
+        
+        # 高级 RAG 组件
+        self.use_advanced_rag = use_advanced_rag and ADVANCED_RAG_AVAILABLE
+        self.retrieval_mode = retrieval_mode
+        self.enable_reranking = enable_reranking
+        self.enable_query_optimization = enable_query_optimization
+        
+        self.hybrid_retriever = None
+        self.query_optimizer = None
+        self.reranker = None
+        
+        # 构建向量存储
         self._build_vectorstore()
+        
+        # 初始化高级 RAG 组件
+        if self.use_advanced_rag:
+            self._init_advanced_rag()
+        else:
+            logger.info("使用基础 RAG 模式（仅向量检索）")
 
     # 加载数据并构建索引
     def _build_vectorstore(self):
@@ -111,14 +149,16 @@ class TopKLogSystem:
             )
             logger.info("成功加载现有向量索引，跳过构建步骤")
 
-    @staticmethod
     # 加载文档数据
-    def _load_documents(data_path: str) -> List[Document]:
+    def _load_documents(self, data_path: str) -> List[Document]:
         if not os.path.exists(data_path):
             logger.warning(f"数据路径不存在: {data_path}")
             return []
 
         documents = []
+        # 同时保存为字典格式（用于 BM25）
+        self.documents_list = []
+        
         for file in os.listdir(data_path):
             ext = os.path.splitext(file)[1]
             if ext not in [".txt", ".md", ".json", ".jsonl", ".csv"]:
@@ -133,18 +173,88 @@ class TopKLogSystem:
                         for row in chunk.itertuples(index=False):  # 无行号
                             content = str(row).replace("Pandas", " ")
                             documents.append(Document(text=content))
+                            # 同时保存为字典（用于高级检索）
+                            self.documents_list.append({"text": content})
                 else:  # .txt or .md, .json
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
-                        doc = Document(text=content, )
+                        doc = Document(text=content)
                         documents.append(doc)
+                        self.documents_list.append({"text": content})
             except Exception as e:
                 logger.error(f"加载文档失败 {file_path}: {e}")
+        
+        logger.info(f"文档加载完成：{len(documents)} 条记录")
         return documents
+    
+    def _init_advanced_rag(self):
+        """初始化高级 RAG 组件"""
+        logger.info("=" * 60)
+        logger.info("初始化高级 RAG 系统")
+        logger.info("=" * 60)
+        
+        try:
+            # 1. 初始化混合检索器
+            if self.retrieval_mode in ["hybrid", "bm25"]:
+                logger.info("🔍 初始化混合检索器（BM25 + 向量）...")
+                self.hybrid_retriever = AdvancedLogRetriever(
+                    vector_index=self.log_index,
+                    documents=self.documents_list,
+                    alpha=0.6,  # 60% 向量权重，40% BM25 权重
+                    enable_context_expansion=True
+                )
+                stats = self.hybrid_retriever.get_statistics()
+                logger.info(f"   ✓ 混合检索器初始化完成")
+                logger.info(f"   - 文档总数: {stats['total_documents']}")
+                logger.info(f"   - 日志级别分布: {stats['level_distribution']}")
+                logger.info(f"   - 向量/BM25 权重: {stats['alpha']}/{stats['beta']}")
+            
+            # 2. 初始化查询优化器
+            if self.enable_query_optimization:
+                logger.info("✨ 初始化查询优化器...")
+                self.query_optimizer = AdvancedQueryOptimizer(llm=self.llm)
+                logger.info("   ✓ 查询优化器初始化完成（支持同义词扩展、意图识别）")
+            
+            # 3. 初始化重排序器
+            if self.enable_reranking:
+                logger.info("🎯 初始化重排序器...")
+                self.reranker = create_reranker(
+                    reranker_type="diversity",  # 使用多样性重排序
+                    diversity_weight=0.3
+                )
+                logger.info("   ✓ 重排序器初始化完成（基于规则 + 多样性）")
+            
+            logger.info("=" * 60)
+            logger.info("✅ 高级 RAG 系统初始化完成")
+            logger.info(f"检索模式: {self.retrieval_mode}")
+            logger.info(f"查询优化: {'启用' if self.enable_query_optimization else '禁用'}")
+            logger.info(f"重排序: {'启用' if self.enable_reranking else '禁用'}")
+            logger.info("=" * 60)
+            
+        except Exception as e:
+            logger.error(f"❌ 高级 RAG 初始化失败: {e}")
+            logger.warning("回退到基础 RAG 模式")
+            self.use_advanced_rag = False
 
         # 检索相关日志
 
-    def retrieve_logs(self, query: str, top_k: int = 10) -> List[Dict]:
+    def retrieve_logs(
+        self,
+        query: str,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict]:
+        """
+        检索相关日志
+        
+        Args:
+            query: 查询文本
+            top_k: 返回结果数量
+            filters: 元数据过滤条件
+            
+        Returns:
+            检索结果列表
+        """
         if not self.log_index:
             logger.warning("索引未初始化，尝试重新构建...")
             self._build_vectorstore()
@@ -153,19 +263,134 @@ class TopKLogSystem:
                 return []
 
         try:
-            retriever = self.log_index.as_retriever(similarity_top_k=top_k)  # topK
-            results = retriever.retrieve(query)
-
-            formatted_results = []
-            for result in results:
-                formatted_results.append({
-                    "content": result.text,
-                    "score": result.score
-                })
-            return formatted_results
+            logger.info(f"\n{'='*60}")
+            logger.info(f"📊 开始检索日志")
+            logger.info(f"原始查询: {query}")
+            logger.info(f"目标数量: top_{top_k}")
+            logger.info(f"{'='*60}")
+            
+            # 使用高级 RAG
+            if self.use_advanced_rag and self.hybrid_retriever:
+                return self._advanced_retrieve(query, top_k, filters)
+            else:
+                # 回退到基础检索
+                return self._basic_retrieve(query, top_k)
+                
         except Exception as e:
             logger.error(f"日志检索失败: {e}")
+            import traceback
+            traceback.print_exc()
             return []
+    
+    def _basic_retrieve(self, query: str, top_k: int) -> List[Dict]:
+        """基础向量检索（原始方法）"""
+        logger.info("使用基础向量检索...")
+        
+        retriever = self.log_index.as_retriever(similarity_top_k=top_k)
+        results = retriever.retrieve(query)
+
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                "content": result.text,
+                "score": result.score if result.score else 0.5
+            })
+        
+        logger.info(f"✓ 基础检索完成，返回 {len(formatted_results)} 条结果")
+        return formatted_results
+    
+    def _advanced_retrieve(
+        self,
+        query: str,
+        top_k: int,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict]:
+        """高级检索（混合检索 + 查询优化 + 重排序）"""
+        logger.info("🚀 使用高级 RAG 检索...")
+        
+        # 1. 查询优化
+        optimized_query = query
+        if self.query_optimizer and self.enable_query_optimization:
+            logger.info("📝 步骤 1: 查询优化")
+            try:
+                opt_result = self.query_optimizer.optimize(query)
+                logger.info(f"   - 原始查询: {query}")
+                logger.info(f"   - 查询意图: {opt_result.intent}")
+                logger.info(f"   - 扩展术语: {opt_result.expanded_terms[:5]}")
+                
+                # 使用增强后的查询
+                optimized_query = self.query_optimizer.enhance_query_for_retrieval(query)
+                logger.info(f"   - 优化后查询: {optimized_query}")
+                
+                # 建议过滤器
+                if not filters:
+                    filters = self.query_optimizer.suggest_filters(query)
+                    if filters:
+                        logger.info(f"   - 建议过滤器: {filters}")
+            except Exception as e:
+                logger.warning(f"查询优化失败: {e}，使用原始查询")
+        
+        # 2. 混合检索
+        logger.info("📚 步骤 2: 混合检索（BM25 + 向量）")
+        try:
+            # 获取更多候选结果（用于重排序）
+            candidate_count = min(top_k * 3, 50)
+            
+            results = self.hybrid_retriever.retrieve(
+                query=optimized_query,
+                top_k=candidate_count,
+                filters=filters,
+                boost_severity=True  # 提升高严重性日志权重
+            )
+            logger.info(f"   ✓ 检索到 {len(results)} 条候选结果")
+            
+            # 显示检索统计
+            if results:
+                sources = [r.source for r in results]
+                from collections import Counter
+                source_counts = Counter(sources)
+                logger.info(f"   - 结果来源: {dict(source_counts)}")
+        except Exception as e:
+            logger.error(f"混合检索失败: {e}，回退到基础检索")
+            return self._basic_retrieve(query, top_k)
+        
+        # 3. 重排序
+        if self.reranker and self.enable_reranking and len(results) > 1:
+            logger.info("🎯 步骤 3: 重排序")
+            try:
+                results = self.reranker.rerank(
+                    query=query,  # 使用原始查询进行重排序
+                    results=results,
+                    top_k=top_k
+                )
+                logger.info(f"   ✓ 重排序完成，返回 top_{len(results)} 结果")
+            except Exception as e:
+                logger.warning(f"重排序失败: {e}，跳过重排序")
+                results = results[:top_k]
+        else:
+            results = results[:top_k]
+        
+        # 4. 格式化结果
+        formatted_results = []
+        for i, result in enumerate(results):
+            formatted_results.append({
+                "content": result.content,
+                "score": result.score,
+                "metadata": {
+                    "service": result.metadata.service,
+                    "level": result.metadata.level,
+                    "error_type": result.metadata.error_type,
+                    "component": result.metadata.component,
+                    "severity_score": result.metadata.severity_score
+                },
+                "rank": i + 1
+            })
+        
+        logger.info(f"{'='*60}")
+        logger.info(f"✅ 高级检索完成，返回 {len(formatted_results)} 条结果")
+        logger.info(f"{'='*60}\n")
+        
+        return formatted_results
 
             # LLM 生成响应
 
