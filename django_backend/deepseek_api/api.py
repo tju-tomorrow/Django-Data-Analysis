@@ -146,7 +146,7 @@ def chat(request, data: ChatIn):
             llm_context = f"用户：{user_input}\n回复："
         
         # 简化分类信息（用于日志）
-        conversation_type = conversation_manager.ConversationType.GENERAL_QA
+        conversation_type = ConversationType.GENERAL_QA
         classification_details = {
             'intent_type': 'general_qa',
             'confidence': 1.0,
