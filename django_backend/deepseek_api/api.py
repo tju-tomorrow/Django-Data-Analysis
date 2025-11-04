@@ -113,65 +113,105 @@ def chat(request, data: ChatIn):
     else:
         print("📊 [历史内容] 空（新会话）")
     
-    # 4. 智能上下文管理 → 新增！
-    print(f"\n🧠 [智能对话管理] 开始分析对话类型和上下文...")
+    # 4. 初始化变量（确保在所有路径下都有定义）
+    historical_turns = []
+    compressed_turns = []
+    conversation_type = None
+    classification_details = {}
+    rag_decision = {}
+    use_rag = False
     
-    # 解析历史对话
-    historical_turns = conversation_manager.parse_conversation_history(session.context)
-    print(f"🧠 [历史解析] 解析出 {len(historical_turns)} 轮历史对话")
-    
-    # 使用轻量级模型分类当前对话类型
-    conversation_type, classification_details = conversation_manager.classify_conversation_type(user_input, len(historical_turns) > 0)
-    print(f"🧠 [智能分类] 对话类型: {conversation_type.value}")
-    print(f"🧠 [分类详情] 意图: {classification_details['intent_type']}, 置信度: {classification_details['confidence']:.3f}")
-    print(f"🧠 [模型信息] 使用模型: {classification_details['model_used']}, 耗时: {classification_details['processing_time']:.3f}秒")
-    
-    # 压缩历史上下文
-    compressed_turns = conversation_manager.compress_context(historical_turns)
-    print(f"🧠 [上下文压缩] 压缩后保留 {len(compressed_turns)} 轮对话")
-    
-    # 使用意图分类结果判断是否需要RAG检索
-    use_rag, rag_decision = conversation_manager.should_use_rag(conversation_type, user_input, classification_details)
-    
-    # 根据前端选择的查询类型决定是否使用RAG
+    # 快速路径：日常聊天模式优化
     if query_type == "general_chat":
-        # 日常聊天模式，不使用RAG
+        # 日常聊天模式：快速路径，跳过意图分类和复杂上下文处理
+        print(f"\n💬 [日常聊天快速路径] 跳过意图分类，直接处理")
         use_rag = False
-        rag_decision['decision_reason'] = "前端选择日常聊天模式，不使用RAG检索"
-        print(f"💬 [日常聊天] 前端选择日常聊天模式，跳过RAG检索")
-    elif query_type == "analysis":
-        # 日志分析模式，使用RAG
-        use_rag = True
-        rag_decision['decision_reason'] = "前端选择日志分析模式，使用RAG检索"
-        print(f"🔍 [日志分析] 前端选择日志分析模式，使用RAG检索")
-    else:
-        # 默认使用意图分类器的判断结果
-        # 对于明显的通用聊天问题（GENERAL_QA、GREETING），跳过RAG
-        from .intent_classifier import IntentType
-        intent_type_str = classification_details.get('intent_type', '')
-        is_general_chat_intent = intent_type_str in ['general_qa', 'greeting']
         
-        if is_general_chat_intent:
-            use_rag = False
-            rag_decision['decision_reason'] = f"意图分类为通用聊天（{intent_type_str}），跳过RAG检索"
-            print(f"💬 [跳过RAG] 意图分类为通用聊天（{intent_type_str}），跳过RAG检索")
+        # 简化上下文处理：只保留最近几轮对话
+        historical_turns = conversation_manager.parse_conversation_history(session.context)
+        # 只保留最近3轮，避免上下文过长
+        recent_turns = historical_turns[-3:] if len(historical_turns) > 3 else historical_turns
+        compressed_turns = recent_turns
+        
+        # 构建简单的对话上下文
+        if compressed_turns:
+            context_parts = []
+            for turn in compressed_turns:
+                context_parts.append(f"用户：{turn.user_input}")
+                context_parts.append(f"回复：{turn.assistant_reply}")
+            context_parts.append(f"用户：{user_input}")
+            context_parts.append("回复：")
+            llm_context = "\n".join(context_parts)
+        else:
+            llm_context = f"用户：{user_input}\n回复："
+        
+        # 简化分类信息（用于日志）
+        conversation_type = conversation_manager.ConversationType.GENERAL_QA
+        classification_details = {
+            'intent_type': 'general_qa',
+            'confidence': 1.0,
+            'processing_time': 0.0,
+            'model_used': 'fast_path',
+            'has_history': len(historical_turns) > 0,
+            'final_type': 'general_qa'
+        }
+        rag_decision = {
+            'intent_confidence': 1.0,
+            'intent_type': 'general_qa',
+            'conversation_type': 'general_qa',
+            'use_rag': False,
+            'decision_reason': '前端选择日常聊天模式，快速路径处理'
+        }
+        
+        print(f"💬 [快速路径] 使用简化上下文，跳过意图分类")
+    else:
+        # 日志分析模式：完整处理流程
+        print(f"\n🧠 [智能对话管理] 开始分析对话类型和上下文...")
+        
+        # 解析历史对话
+        historical_turns = conversation_manager.parse_conversation_history(session.context)
+        print(f"🧠 [历史解析] 解析出 {len(historical_turns)} 轮历史对话")
+        
+        # 使用轻量级模型分类当前对话类型
+        conversation_type, classification_details = conversation_manager.classify_conversation_type(user_input, len(historical_turns) > 0)
+        print(f"🧠 [智能分类] 对话类型: {conversation_type.value}")
+        print(f"🧠 [分类详情] 意图: {classification_details['intent_type']}, 置信度: {classification_details['confidence']:.3f}")
+        print(f"🧠 [模型信息] 使用模型: {classification_details['model_used']}, 耗时: {classification_details['processing_time']:.3f}秒")
+        
+        # 压缩历史上下文
+        compressed_turns = conversation_manager.compress_context(historical_turns)
+        print(f"🧠 [上下文压缩] 压缩后保留 {len(compressed_turns)} 轮对话")
+        
+        # 使用意图分类结果判断是否需要RAG检索
+        use_rag, rag_decision = conversation_manager.should_use_rag(conversation_type, user_input, classification_details)
+        
+        # 日志分析模式，强制使用RAG
+        if query_type == "analysis":
+            use_rag = True
+            rag_decision['decision_reason'] = "前端选择日志分析模式，使用RAG检索"
+            print(f"🔍 [日志分析] 前端选择日志分析模式，使用RAG检索")
+        
+        print(f"🧠 [智能RAG决策] 使用RAG: {use_rag}")
+        print(f"🧠 [决策原因] {rag_decision['decision_reason']}")
+        print(f"🧠 [决策详情] 意图置信度: {rag_decision['intent_confidence']:.3f}, 意图类型: {rag_decision['intent_type']}")
+        
+        # 构建LLM上下文
+        llm_context = conversation_manager.build_context_for_llm(compressed_turns, user_input, conversation_type)
     
-    print(f"🧠 [智能RAG决策] 使用RAG: {use_rag}")
-    print(f"🧠 [决策原因] {rag_decision['decision_reason']}")
-    print(f"🧠 [决策详情] 意图置信度: {rag_decision['intent_confidence']:.3f}, 意图类型: {rag_decision['intent_type']}")
-    
-    # 构建LLM上下文
-    llm_context = conversation_manager.build_context_for_llm(compressed_turns, user_input, conversation_type)
-    
-    print(f"\n🔧 [上下文构建]")
-    print(f"   原始历史长度: {len(session.context)} 字符")
-    print(f"   压缩后长度: {len(llm_context)} 字符")
-    print(f"   对话类型: {conversation_type.value}")
-    print(f"   使用RAG: {use_rag}")
-    print(f"🔧 [LLM上下文] ↓↓↓")
-    print("-" * 60)
-    print(llm_context)
-    print("-" * 60)
+    if query_type == "general_chat":
+        print(f"\n💬 [快速路径上下文]")
+        print(f"   保留轮次: {len(compressed_turns)}")
+        print(f"   上下文长度: {len(llm_context)} 字符")
+    else:
+        print(f"\n🔧 [上下文构建]")
+        print(f"   原始历史长度: {len(session.context)} 字符")
+        print(f"   压缩后长度: {len(llm_context)} 字符")
+        print(f"   对话类型: {conversation_type.value}")
+        print(f"   使用RAG: {use_rag}")
+        print(f"🔧 [LLM上下文] ↓↓↓")
+        print("-" * 60)
+        print(llm_context)
+        print("-" * 60)
     
     # 根据对话类型选择不同的处理逻辑
     if use_rag:
