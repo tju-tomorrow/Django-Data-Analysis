@@ -132,6 +132,15 @@ def chat(request, data: ChatIn):
     
     # 使用意图分类结果判断是否需要RAG检索
     use_rag, rag_decision = conversation_manager.should_use_rag(conversation_type, user_input, classification_details)
+    
+    # 重要：如果前端明确指定了需要RAG的查询类型，强制使用RAG
+    # 这些查询类型明确表示需要进行日志检索和分析
+    rag_required_types = ["analysis", "error_classification", "performance_analysis", "security_analysis"]
+    if query_type in rag_required_types:
+        use_rag = True
+        rag_decision['decision_reason'] = f"前端指定的查询类型 '{query_type}' 需要RAG检索"
+        print(f"🔧 [强制RAG] 前端查询类型 '{query_type}' 需要RAG，覆盖意图分类结果")
+    
     print(f"🧠 [智能RAG决策] 使用RAG: {use_rag}")
     print(f"🧠 [决策原因] {rag_decision['decision_reason']}")
     print(f"🧠 [决策详情] 意图置信度: {rag_decision['intent_confidence']:.3f}, 意图类型: {rag_decision['intent_type']}")
@@ -173,12 +182,18 @@ def chat(request, data: ChatIn):
         print(f"❌ [缓存未命中] 调用大模型API...")
         
         if use_rag:
-            # RAG模式：传递对话历史给RAG系统
+            # RAG模式：传递原始用户查询给RAG系统（RAG系统会自己检索日志）
             print(f"🔍 [RAG模式] 使用RAG检索 + 对话历史")
-            reply = deepseek_r1_api_call(prompt, query_type)  # RAG系统会处理检索
+            print(f"🔍 [RAG查询] 原始查询: '{user_input}'")
+            print(f"🔍 [RAG查询] 查询类型: '{query_type}'")
+            # RAG系统会基于用户查询检索日志，然后结合对话历史生成回答
+            # 将用户查询和对话历史都传递给RAG系统
+            rag_query = user_input  # RAG系统使用原始查询进行检索
+            reply = deepseek_r1_api_call(rag_query, query_type)  # RAG系统会处理检索
         else:
-            # 纯对话模式：直接调用大模型
+            # 纯对话模式：直接调用大模型，不使用RAG检索
             print(f"💬 [对话模式] 纯对话，不使用RAG检索")
+            print(f"💬 [对话查询] 查询: '{user_input}'")
             # 这里可以调用一个简化的LLM接口，不进行RAG检索
             reply = deepseek_r1_api_call(prompt, "general_chat")  # 使用通用对话模式
         
