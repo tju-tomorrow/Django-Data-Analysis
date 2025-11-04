@@ -99,70 +99,6 @@ class PromptTemplates:
 改写后的查询：
 """
 
-    ERROR_CLASSIFICATION_TEMPLATE = """## 错误日志
-{error_logs}
-
-请对这些错误进行分类，按照以下格式：
-
-1. 错误类型：[类型名称]
-   - 影响级别：[严重/中等/轻微]
-   - 相关日志：[日志编号]
-   - 可能原因：[简要描述]
-
-2. 错误类型：[类型名称]
-   ...
-
-请尽可能详细地分类，至少包含3个不同的错误类型。
-"""
-
-    PERFORMANCE_ANALYSIS_TEMPLATE = """## 性能指标日志
-{performance_logs}
-
-## 分析任务
-{query}
-
-请分析系统性能，包括：
-
-1. 关键性能指标总结
-   - 响应时间趋势
-   - 吞吐量变化
-   - 资源利用率
-
-2. 性能瓶颈识别
-   - 主要瓶颈点
-   - 潜在原因
-
-3. 优化建议
-   - 代码级优化
-   - 配置调整
-   - 架构改进
-
-请使用图表描述（用文本表示）并引用具体日志数据支持你的分析。
-"""
-
-    SECURITY_ANALYSIS_TEMPLATE = """## 安全相关日志
-{security_logs}
-
-## 分析任务
-{query}
-
-请进行安全分析，包括：
-
-1. 安全事件识别
-   - 可疑活动模式
-   - 潜在威胁指标
-
-2. 漏洞评估
-   - 已知漏洞匹配
-   - 潜在安全风险
-
-3. 安全建议
-   - 紧急缓解措施
-   - 长期安全加固
-
-请引用具体日志证据支持你的分析，并按照严重程度排序。
-"""
-
     def get_template_by_type(self, query_type: str, **kwargs) -> str:
         """根据查询类型获取对应的模板"""
         if query_type == "analysis":
@@ -171,12 +107,13 @@ class PromptTemplates:
             return self.SYSTEM_ROLE + "\n\n" + self.MULTI_TURN_TEMPLATE.format(**kwargs)
         elif query_type == "query_rewrite":
             return self.QUERY_REWRITE_TEMPLATE.format(**kwargs)
-        elif query_type == "error_classification":
-            return self.SYSTEM_ROLE + "\n\n" + self.ERROR_CLASSIFICATION_TEMPLATE.format(**kwargs)
-        elif query_type == "performance_analysis":
-            return self.SYSTEM_ROLE + "\n\n" + self.PERFORMANCE_ANALYSIS_TEMPLATE.format(**kwargs)
-        elif query_type == "security_analysis":
-            return self.SYSTEM_ROLE + "\n\n" + self.SECURITY_ANALYSIS_TEMPLATE.format(**kwargs)
+        elif query_type == "general_chat":
+            # 日常聊天模式，使用简单的对话模板
+            return f"""你是一个友好的技术助手。请回答用户的问题，提供准确、有用的信息。
+
+用户问题：{kwargs.get('query', '')}
+
+请回答："""
         else:
             # 默认返回基础分析模板
             return self.SYSTEM_ROLE + "\n\n" + self.LOG_ANALYSIS_TEMPLATE.format(**kwargs)

@@ -7,9 +7,7 @@
         :disabled="loading"
       >
         <option value="analysis">日志分析</option>
-        <option value="error_classification">错误分类</option>
-        <option value="performance_analysis">性能分析</option>
-        <option value="security_analysis">安全分析</option>
+        <option value="general_chat">日常聊天</option>
       </select>
       <textarea
         v-model="message"

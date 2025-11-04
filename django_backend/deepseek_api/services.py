@@ -53,7 +53,7 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
     
     Args:
         prompt: 用户输入的问题
-        query_type: 查询类型（analysis, error_classification, performance_analysis, security_analysis）
+        query_type: 查询类型（analysis: 日志分析, general_chat: 日常聊天）
     
     Returns:
         LLM 的响应文本
