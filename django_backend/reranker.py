@@ -90,7 +90,7 @@ class RuleBasedReranker(BaseReranker):
         if not results:
             return results
         
-        logger.info(f"重排序 {len(results)} 条结果")
+        logger.info(f"二重排序 {len(results)} 条结果")
         
         # 计算每个结果的特征分数
         scored_results = []

@@ -60,6 +60,9 @@ class TopKLogSystem:
         retrieval_mode: str = "hybrid",  # 检索模式: "vector", "bm25", "hybrid"
         enable_reranking: bool = True,   # 是否启用重排序
         enable_query_optimization: bool = True,  # 是否启用查询优化
+        default_top_k: int = 10,  # 默认返回结果数量
+        rerank_candidate_multiplier: int = 3,  # 重排序候选数量倍数（检索数量 = top_k * multiplier）
+        max_rerank_candidates: int = 50,  # 重排序候选数量上限
     ) -> None:
         # init models - 使用 llama-index 原生组件
         self.llm = Ollama(
@@ -88,6 +91,9 @@ class TopKLogSystem:
         self.retrieval_mode = retrieval_mode
         self.enable_reranking = enable_reranking
         self.enable_query_optimization = enable_query_optimization
+        self.default_top_k = default_top_k
+        self.rerank_candidate_multiplier = rerank_candidate_multiplier
+        self.max_rerank_candidates = max_rerank_candidates
         
         self.hybrid_retriever = None
         self.query_optimizer = None
@@ -346,7 +352,10 @@ class TopKLogSystem:
         logger.info("📚 步骤 2: 混合检索（BM25 + 向量）")
         try:
             # 获取更多候选结果（用于重排序）
-            candidate_count = min(top_k * 3, 50)
+            # 公式：候选数量 = top_k * 倍数，但不超过上限
+            # 默认：top_k=10, 倍数=3, 上限=50 → 候选数量=30
+            candidate_count = min(top_k * self.rerank_candidate_multiplier, self.max_rerank_candidates)
+            logger.info(f"   检索候选数量: {candidate_count} (top_k={top_k} × {self.rerank_candidate_multiplier}, 上限={self.max_rerank_candidates})")
             
             results = self.hybrid_retriever.retrieve(
                 query=optimized_query,
