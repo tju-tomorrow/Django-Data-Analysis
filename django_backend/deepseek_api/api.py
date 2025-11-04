@@ -133,13 +133,28 @@ def chat(request, data: ChatIn):
     # 使用意图分类结果判断是否需要RAG检索
     use_rag, rag_decision = conversation_manager.should_use_rag(conversation_type, user_input, classification_details)
     
-    # 重要：如果前端明确指定了需要RAG的查询类型，强制使用RAG
-    # 这些查询类型明确表示需要进行日志检索和分析
-    rag_required_types = ["analysis", "error_classification", "performance_analysis", "security_analysis"]
-    if query_type in rag_required_types:
+    # 根据前端选择的查询类型决定是否使用RAG
+    if query_type == "general_chat":
+        # 日常聊天模式，不使用RAG
+        use_rag = False
+        rag_decision['decision_reason'] = "前端选择日常聊天模式，不使用RAG检索"
+        print(f"💬 [日常聊天] 前端选择日常聊天模式，跳过RAG检索")
+    elif query_type == "analysis":
+        # 日志分析模式，使用RAG
         use_rag = True
-        rag_decision['decision_reason'] = f"前端指定的查询类型 '{query_type}' 需要RAG检索"
-        print(f"🔧 [强制RAG] 前端查询类型 '{query_type}' 需要RAG，覆盖意图分类结果")
+        rag_decision['decision_reason'] = "前端选择日志分析模式，使用RAG检索"
+        print(f"🔍 [日志分析] 前端选择日志分析模式，使用RAG检索")
+    else:
+        # 默认使用意图分类器的判断结果
+        # 对于明显的通用聊天问题（GENERAL_QA、GREETING），跳过RAG
+        from .intent_classifier import IntentType
+        intent_type_str = classification_details.get('intent_type', '')
+        is_general_chat_intent = intent_type_str in ['general_qa', 'greeting']
+        
+        if is_general_chat_intent:
+            use_rag = False
+            rag_decision['decision_reason'] = f"意图分类为通用聊天（{intent_type_str}），跳过RAG检索"
+            print(f"💬 [跳过RAG] 意图分类为通用聊天（{intent_type_str}），跳过RAG检索")
     
     print(f"🧠 [智能RAG决策] 使用RAG: {use_rag}")
     print(f"🧠 [决策原因] {rag_decision['decision_reason']}")

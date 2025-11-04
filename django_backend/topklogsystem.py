@@ -413,7 +413,7 @@ class TopKLogSystem:
         Args:
             query: 用户查询
             context: 检索到的日志上下文
-            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            query_type: 查询类型，可选值: analysis（日志分析）, general_chat（日常聊天）, multi_turn（多轮对话）
             
         Returns:
             LLM 生成的响应文本
@@ -436,7 +436,7 @@ class TopKLogSystem:
         Args:
             query: 用户查询
             context: 检索到的日志上下文
-            query_type: 查询类型，可选值: analysis, multi_turn, error_classification, performance_analysis, security_analysis
+            query_type: 查询类型，可选值: analysis（日志分析）, general_chat（日常聊天）, multi_turn（多轮对话）
             
         Returns:
             构建好的提示词
@@ -536,7 +536,7 @@ class TopKLogSystem:
         
         Args:
             query: 用户查询
-            query_type: 查询类型，可选值: analysis, general_chat, multi_turn, error_classification, performance_analysis, security_analysis
+            query_type: 查询类型，可选值: analysis（日志分析）, general_chat（日常聊天）, multi_turn（多轮对话）
             
         Returns:
             包含响应和检索统计的字典
@@ -598,8 +598,8 @@ if __name__ == "__main__":
         embedding_model="bge-large"
     )
 
-    # 基础日志分析示例
-    print("\n=== 基础日志分析示例 ===")
+    # 日志分析示例
+    print("\n=== 日志分析示例 ===")
     query = "如何解决数据库连接池耗尽的问题？"
     result = system.query(query, query_type="analysis")
     print("查询:", query)
@@ -607,19 +607,10 @@ if __name__ == "__main__":
     print("检索统计:", result["retrieval_stats"])
     print("响应:", result["response"])
     
-    # 错误分类示例
-    print("\n=== 错误分类示例 ===")
-    query = "分析系统中的错误类型和严重程度"
-    result = system.query(query, query_type="error_classification")
-    print("查询:", query)
-    print("查询类型:", result["query_type"])
-    print("检索统计:", result["retrieval_stats"])
-    print("响应:", result["response"])
-    
-    # 性能分析示例
-    print("\n=== 性能分析示例 ===")
-    query = "分析系统性能瓶颈并提供优化建议"
-    result = system.query(query, query_type="performance_analysis")
+    # 日常聊天示例
+    print("\n=== 日常聊天示例 ===")
+    query = "你好，请介绍一下你自己"
+    result = system.query(query, query_type="general_chat")
     print("查询:", query)
     print("查询类型:", result["query_type"])
     print("检索统计:", result["retrieval_stats"])
