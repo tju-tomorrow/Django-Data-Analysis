@@ -137,34 +137,26 @@ class QueryOptimizer:
     
     def _detect_intent(self, query: str) -> str:
         """
-        检测查询意图
+        检测查询意图（用于优化日志检索）
         
-        可能的意图：
-        - error_diagnosis: 错误诊断
-        - performance_analysis: 性能分析
-        - root_cause: 根因分析
-        - solution_seeking: 寻求解决方案
-        - log_search: 日志搜索
-        - trend_analysis: 趋势分析
+        注意：这是内部检索优化意图，不是前端的查询类型。
+        前端只有两种查询类型：analysis（日志分析）和 general_chat（日常聊天）。
+        
+        内部检索意图（用于优化 RAG 检索）：
+        - error_diagnosis: 错误诊断（查找错误相关日志）
+        - solution_seeking: 寻求解决方案（查找问题和解决方法）
+        - log_search: 通用日志搜索（默认）
         """
         query_lower = query.lower()
         
-        # 错误诊断
+        # 错误相关查询
         if any(word in query_lower for word in ['错误', 'error', '异常', 'exception', '失败', 'failure', 'bug']):
-            if any(word in query_lower for word in ['为什么', 'why', '原因', 'cause', '怎么回事']):
-                return 'root_cause'
-            elif any(word in query_lower for word in ['怎么', 'how', '解决', 'solve', 'fix', '修复']):
+            # 如果是寻求解决方案
+            if any(word in query_lower for word in ['怎么', 'how', '解决', 'solve', 'fix', '修复', '如何']):
                 return 'solution_seeking'
             else:
+                # 错误诊断
                 return 'error_diagnosis'
-        
-        # 性能分析
-        if any(word in query_lower for word in ['性能', 'performance', '慢', 'slow', '延迟', 'latency', '优化', 'optimize']):
-            return 'performance_analysis'
-        
-        # 趋势分析
-        if any(word in query_lower for word in ['趋势', 'trend', '统计', 'statistics', '分析', 'analyze', '总结', 'summary']):
-            return 'trend_analysis'
         
         # 默认为日志搜索
         return 'log_search'
@@ -172,7 +164,7 @@ class QueryOptimizer:
     def _rewrite_query(self, query: str, intent: str) -> List[str]:
         """
         查询重写
-        根据意图生成多个查询变体
+        根据意图生成多个查询变体（用于提升检索召回率）
         """
         rewritten = [query]  # 始终包含原始查询
         
@@ -186,16 +178,7 @@ class QueryOptimizer:
             # 添加解决方案相关的变体
             rewritten.append(f"{query} 解决方法")
             rewritten.append(f"{query} 修复方案")
-            
-        elif intent == 'root_cause':
-            # 添加根因分析相关的变体
-            rewritten.append(f"{query} 原因分析")
-            rewritten.append(f"{query} 问题定位")
-            
-        elif intent == 'performance_analysis':
-            # 添加性能相关的变体
-            rewritten.append(f"{query} 性能瓶颈")
-            rewritten.append(f"{query} 慢查询")
+            rewritten.append(f"{query} 解决方案")
         
         # 去重
         rewritten = list(dict.fromkeys(rewritten))
@@ -328,7 +311,7 @@ class AdvancedQueryOptimizer(QueryOptimizer):
 
 请以JSON格式返回：
 {{
-    "intent": "查询意图（error_diagnosis/performance_analysis/root_cause/solution_seeking）",
+    "intent": "查询意图（error_diagnosis/solution_seeking/log_search）",
     "rewritten": ["重写后的查询1", "重写后的查询2"],
     "expanded_terms": ["扩展术语1", "扩展术语2"]
 }}

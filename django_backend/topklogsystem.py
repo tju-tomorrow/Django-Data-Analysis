@@ -535,7 +535,7 @@ class TopKLogSystem:
         执行查询并生成响应
         
         Args:
-            query: 用户查询
+            query: 用户查询（可能是原始查询，也可能是包含对话历史的完整prompt）
             query_type: 查询类型，可选值: analysis（日志分析）, general_chat（日常聊天）, multi_turn（多轮对话）
             
         Returns:
@@ -545,47 +545,53 @@ class TopKLogSystem:
         if query_type == "general_chat":
             # 通用对话模式，不进行RAG检索
             print(f"💬 [通用对话模式] 跳过RAG检索，直接调用LLM")
-            response = self._generate_general_response(query)
+            # 如果query包含对话历史（有"用户："和"回复："），直接使用它作为prompt
+            # 否则，构建简单的对话prompt
+            if "用户：" in query and "回复：" in query:
+                # 包含对话历史，直接使用
+                prompt = query
+            else:
+                # 只有原始查询，构建简单prompt
+                prompt = f"""你是一个专业的技术助手。请直接回答用户的问题，提供准确、有用的信息。
+
+用户问题：{query}
+
+请回答："""
+            
+            try:
+                response = self.llm.complete(prompt)
+                response_text = response.text
+            except Exception as e:
+                logger.error(f"通用对话LLM调用失败: {e}")
+                response_text = f"抱歉，我无法回答您的问题。错误信息: {str(e)}"
+            
             return {
-                "response": response,
+                "response": response_text,
                 "retrieval_stats": 0,
                 "query_type": query_type
             }
         else:
             # 日志分析模式，进行RAG检索
+            # 从query中提取原始用户问题（如果包含对话历史）
+            if "用户：" in query:
+                # 提取最后一个用户输入
+                parts = query.split("用户：")
+                if parts:
+                    user_query = parts[-1].split("\n")[0].strip()
+                else:
+                    user_query = query
+            else:
+                user_query = query
+            
             print(f"🔍 [日志分析模式] 进行RAG检索")
-            log_results = self.retrieve_logs(query)
-            response = self.generate_response(query, log_results, query_type)
+            log_results = self.retrieve_logs(user_query)
+            response = self.generate_response(user_query, log_results, query_type)
             
             return {
                 "response": response,
                 "retrieval_stats": len(log_results),
                 "query_type": query_type
             }
-    
-    def _generate_general_response(self, query: str) -> str:
-        """
-        生成通用对话回复（不使用RAG）
-        
-        Args:
-            query: 用户查询
-            
-        Returns:
-            LLM生成的回复
-        """
-        # 构建简单的对话prompt
-        simple_prompt = f"""你是一个专业的技术助手。请直接回答用户的问题，提供准确、有用的信息。
-
-用户问题：{query}
-
-请回答："""
-        
-        try:
-            response = self.llm.complete(simple_prompt)
-            return response.text
-        except Exception as e:
-            logger.error(f"通用对话LLM调用失败: {e}")
-            return f"抱歉，我无法回答您的问题。错误信息: {str(e)}"
 
     # 示例使用
 
