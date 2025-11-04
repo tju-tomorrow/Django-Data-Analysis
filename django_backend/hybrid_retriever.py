@@ -14,6 +14,14 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
+# numpy 用于处理 BM25 返回的数组
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    np = None
+
 # BM25 算法 - 可选依赖
 try:
     from rank_bm25 import BM25Okapi
@@ -195,18 +203,37 @@ class HybridRetriever:
         metadata = LogMetadata()
         
         # 解析 CSV 格式：服务,级别,错误,消息,组件,原因
-        parts = text.split(',')
-        if len(parts) >= 6:
-            try:
-                metadata.service = parts[0].strip() if parts[0].strip() else None
-                metadata.level = parts[1].strip() if parts[1].strip() else None
-                metadata.error_type = parts[2].strip() if parts[2].strip() else None
-                metadata.component = parts[4].strip() if parts[4].strip() else None
+        # 注意：text 可能是 "Pandas(Index=0, 服务='AuthService', 级别='ERROR', ...)" 格式
+        try:
+            # 尝试多种解析方式
+            if ',' in text:
+                # 方法1：直接按逗号分割（标准 CSV）
+                parts = [p.strip() for p in text.split(',')]
+                if len(parts) >= 6:
+                    # 清理可能的引号
+                    metadata.service = parts[0].strip("'\" ").strip() if parts[0].strip() else None
+                    metadata.level = parts[1].strip("'\" ").strip() if parts[1].strip() else None
+                    metadata.error_type = parts[2].strip("'\" ").strip() if parts[2].strip() else None
+                    if len(parts) > 4:
+                        metadata.component = parts[4].strip("'\" ").strip() if parts[4].strip() else None
+                
+                # 方法2：如果上面没解析到，尝试从 Pandas 格式提取
+                if not metadata.level and '级别' in text:
+                    import re
+                    level_match = re.search(r"级别\s*[=:]\s*['\"]?(\w+)['\"]?", text)
+                    if level_match:
+                        metadata.level = level_match.group(1).upper()
+                
+                if not metadata.service and '服务' in text:
+                    import re
+                    service_match = re.search(r"服务\s*[=:]\s*['\"]?(\w+)['\"]?", text)
+                    if service_match:
+                        metadata.service = service_match.group(1)
                 
                 # 计算严重程度评分
                 metadata.severity_score = self._calculate_severity(metadata.level)
-            except Exception as e:
-                logger.warning(f"解析日志元数据失败: {e}")
+        except Exception as e:
+            logger.debug(f"解析日志元数据失败: {e}, 文本: {text[:50]}...")
         
         return metadata
     
@@ -302,8 +329,22 @@ class HybridRetriever:
         # 4. 应用元数据过滤
         if filters and isinstance(filters, dict):
             try:
-                merged_results = self._apply_filters(merged_results, filters)
-                logger.info(f"过滤后剩余 {len(merged_results)} 条结果")
+                before_filter_count = len(merged_results)
+                filtered_results = self._apply_filters(merged_results, filters)
+                after_filter_count = len(filtered_results)
+                logger.info(f"过滤前: {before_filter_count} 条，过滤后: {after_filter_count} 条")
+                
+                # 如果过滤后结果为空，但过滤前有结果，说明过滤条件太严格
+                # 为了不丢失所有结果，我们返回未过滤的结果，但记录警告
+                if after_filter_count == 0 and before_filter_count > 0:
+                    logger.warning(f"⚠ 过滤条件 '{filters}' 过滤掉了所有 {before_filter_count} 条结果")
+                    logger.warning("⚠ 返回未过滤的结果以避免空结果，但建议检查过滤条件是否合理")
+                    # 保留未过滤的结果，但降低它们的分数（表示可能不完全匹配）
+                    for result in merged_results:
+                        result.score *= 0.9  # 轻微降低分数
+                    merged_results = merged_results
+                else:
+                    merged_results = filtered_results
             except Exception as e:
                 logger.error(f"过滤失败: {e}，跳过过滤")
         
@@ -374,10 +415,14 @@ class HybridRetriever:
                 logger.warning("查询分词后为空，BM25 检索返回空结果")
                 return []
             
-            # BM25 评分
+            # BM25 评分（返回 numpy 数组）
             scores = self.bm25.get_scores(query_tokens)
             
-            if not scores or len(scores) == 0:
+            # 转换为 Python 列表（避免 numpy 数组的真值判断问题）
+            if NUMPY_AVAILABLE and isinstance(scores, np.ndarray):
+                scores = scores.tolist()
+            
+            if len(scores) == 0:
                 logger.warning("BM25 评分为空")
                 return []
             
@@ -387,7 +432,8 @@ class HybridRetriever:
                 return []
             
             # 获取 top_k（过滤掉分数为 0 或负数的结果）
-            valid_indices = [(i, scores[i]) for i in range(len(scores)) if scores[i] > 0]
+            # 确保分数是标量值进行比较
+            valid_indices = [(i, float(scores[i])) for i in range(len(scores)) if float(scores[i]) > 0]
             if not valid_indices:
                 logger.warning("所有 BM25 分数都为 0 或负数")
                 return []
