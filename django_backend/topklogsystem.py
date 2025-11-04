@@ -148,6 +148,18 @@ class TopKLogSystem:
                 log_vector_store,
             )
             logger.info("成功加载现有向量索引，跳过构建步骤")
+            
+            # 重要：即使使用现有索引，也需要加载文档列表用于 BM25 检索
+            # 因为高级 RAG 需要 documents_list 来构建 BM25 索引
+            if self.use_advanced_rag:
+                logger.info("正在加载文档列表用于 BM25 检索...")
+                if not self.documents_list:
+                    # 尝试加载文档（不重建向量索引）
+                    self._load_documents(self.log_path)
+                    if self.documents_list:
+                        logger.info(f"文档列表加载完成：{len(self.documents_list)} 条记录")
+                    else:
+                        logger.warning("文档列表为空，高级 RAG 可能无法正常工作")
 
     # 加载文档数据
     def _load_documents(self, data_path: str) -> List[Document]:
