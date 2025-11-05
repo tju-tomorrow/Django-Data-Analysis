@@ -10,8 +10,7 @@ SECRET_KEY = 'django-insecure-example-key-for-development-only'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1']
-# ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -82,10 +81,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # 允许前端域名（根据实际前端地址修改）
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8090",  # 前端开发服务器地址
-    "http://127.0.0.1:8090",
-]
+# 本地开发放开跨域（前端端口可能为 8082/8083 等）
+CORS_ALLOW_ALL_ORIGINS = True
 
 # 允许请求头携带 Authorization
 CORS_ALLOW_HEADERS = [
