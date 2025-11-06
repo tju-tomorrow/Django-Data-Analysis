@@ -22,7 +22,8 @@
     <div class="chat-area">
       <div class="chat-header">
         <div class="header-left">
-          <h1>DeepSeek-KAI.v.0.0.1 聊天</h1>
+          <h1>LogOracle <span class="subtitle-cn">日志神谕</span></h1>
+          <p class="header-desc">智能日志分析平台 · 洞察系统真相</p>
           <h2>当前会话: {{ currentSession }}</h2>
         </div>
         <button class="settings-btn" @click="showSettings = true" title="设置">
@@ -34,7 +35,17 @@
 
       <div class="messages-container">
         <div v-if="messages.length === 0" class="empty-state">
-          开始与 DeepSeek-KAI.v.0.0.1 的对话吧！
+          <div class="welcome-content">
+            <h3>欢迎使用 LogOracle 日志神谕</h3>
+            <p>基于 RAG 技术的智能日志分析平台</p>
+            <div class="features">
+              <div class="feature-item">🔍 智能检索</div>
+              <div class="feature-item">💡 深度分析</div>
+              <div class="feature-item">🎯 精准诊断</div>
+              <div class="feature-item">📊 多维度洞察</div>
+            </div>
+            <p class="start-hint">开始提问，让 LogOracle 为您揭示日志中的真相</p>
+          </div>
         </div>
 
         <ChatMessage
@@ -47,7 +58,7 @@
 
         <div v-if="loading" class="loading-indicator">
           <div class="loading"></div>
-          <p>DeepSeek-KAI.v.0.0.1 正在思考...</p>
+          <p>LogOracle 正在分析日志，洞察真相中...</p>
         </div>
       </div>
 
@@ -269,12 +280,31 @@ const handleLogout = () => {
 .header-left h1 {
   color: var(--primary-color);
   margin-bottom: 0.25rem;
+  font-size: 1.75rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.subtitle-cn {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.header-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 0.5rem 0;
+  font-weight: 400;
 }
 
 .header-left h2 {
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   font-weight: 500;
+  margin-top: 0.25rem;
 }
 
 .messages-container {
@@ -290,9 +320,44 @@ const handleLogout = () => {
 .empty-state {
   margin: auto;
   color: var(--text-secondary);
-  font-size: 1.25rem;
   text-align: center;
   padding: 2rem;
+  max-width: 600px;
+}
+
+.welcome-content h3 {
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.welcome-content > p {
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+}
+
+.features {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.feature-item {
+  padding: 0.5rem 1rem;
+  background-color: var(--card-bg);
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border-color);
+}
+
+.start-hint {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 1.5rem;
+  font-style: italic;
 }
 
 .loading-indicator {

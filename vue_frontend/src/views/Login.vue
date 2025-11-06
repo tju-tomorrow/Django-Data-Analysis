@@ -1,8 +1,11 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h1 class="title">DeepSeek-KAI 客户端</h1>
-      <p class="subtitle">请登录以继续</p>
+      <div class="logo-section">
+        <h1 class="title">LogOracle <span class="subtitle-cn">日志神谕</span></h1>
+        <p class="tagline">智能日志分析平台 · 洞察系统真相</p>
+      </div>
+      <p class="subtitle">请登录以继续使用</p>
       
       <div v-if="error" class="error-message">{{ error }}</div>
       
@@ -83,15 +86,38 @@ const handleLogin = async () => {
   text-align: center;
 }
 
+.logo-section {
+  margin-bottom: 1.5rem;
+}
+
 .title {
   color: var(--primary-color);
   margin-bottom: 0.5rem;
   font-size: 2rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.subtitle-cn {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.tagline {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  font-weight: 400;
 }
 
 .subtitle {
   color: var(--text-secondary);
   margin-bottom: 2rem;
+  font-size: 1rem;
 }
 
 .login-form {

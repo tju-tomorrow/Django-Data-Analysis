@@ -163,7 +163,7 @@ const formatTime = (date) => {
   color: var(--code-color, #e01e5a);
   padding: 0.2em 0.4em;
   border-radius: 3px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9em;
 }
 
