@@ -157,8 +157,8 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis"):
         log_results = system.retrieve_logs(prompt)
         print(f"🤖 [RAG检索] 检索到 {len(log_results)} 条相关日志")
         
-        # 2. 构建包含检索结果的 prompt
-        rag_prompt = system._build_prompt_string(prompt, {"results": log_results}, query_type)
+        # 2. 构建包含检索结果的 prompt（context 参数直接传递日志列表）
+        rag_prompt = system._build_prompt_string(prompt, log_results, query_type)
         print(f"🤖 [RAG Prompt] 构建完成，长度: {len(rag_prompt)} 字符")
         
         # 3. 流式调用 LLM
