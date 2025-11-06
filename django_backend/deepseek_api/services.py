@@ -70,6 +70,25 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
     print(f"🤖 [调用参数] query_type: '{query_type}'")
     print(f"🤖 [Prompt长度] {len(prompt)} 字符")
     
+    # 先进行意图分类，检查是否为工具类意图
+    from .intent_classifier import get_intent_classifier, TOOL_INTENTS
+    classifier = get_intent_classifier()
+    intent_result = classifier.classify_intent(prompt)
+    
+    print(f"🔍 [意图分类] 意图: {intent_result.intent.value}, 置信度: {intent_result.confidence:.3f}")
+    
+    # 如果是工具类意图，执行工具并将结果传递给LLM
+    tool_result = None
+    if intent_result.intent in TOOL_INTENTS:
+        print(f"🔧 [工具调用] 检测到工具类意图: {intent_result.intent.value}")
+        tool_func = classifier.tools.get(intent_result.intent)
+        if tool_func:
+            tool_result = tool_func(prompt)
+            print(f"✅ [工具执行] 工具执行完成，结果长度: {len(tool_result)} 字符")
+            print(f"🔧 [工具结果] 将工具结果传递给LLM进行分析和回答")
+        else:
+            print(f"⚠️ [工具调用] 未找到对应的工具函数: {intent_result.intent.value}")
+    
     from model_config import CURRENT_CONFIG
     use_api = CURRENT_CONFIG.get('use_api', False)
     
@@ -77,6 +96,33 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
         # 使用 DeepSeek API
         from deepseek_llm import DeepSeekLLM
         from llama_index.core.llms import ChatMessage
+        
+        # 如果执行了工具，将工具结果作为上下文传递给LLM
+        if tool_result:
+            # 构建包含工具结果的prompt
+            enhanced_prompt = f"""用户问题：{prompt}
+
+工具执行结果：
+{tool_result}
+
+请基于以上工具执行结果，对用户的问题进行详细分析和回答。要求：
+1. 对工具结果进行总结和分析
+2. 指出关键问题和异常
+3. 提供具体的建议和解决方案
+4. 用清晰、专业的方式组织回答"""
+            
+            print(f"🤖 [工具增强Prompt] 构建完成，长度: {len(enhanced_prompt)} 字符")
+            llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=60)
+            messages = [ChatMessage(role="user", content=enhanced_prompt)]
+            
+            print(f"🤖 [API请求] 发送工具增强的请求到大模型...")
+            response = llm.chat(messages)
+            
+            result_text = response.message.content
+            print(f"🤖 [API响应] 收到回复，长度: {len(result_text)} 字符")
+            print(f"🤖 [回复内容] {result_text[:100]}{'...' if len(result_text) > 100 else ''}")
+            
+            return result_text
         
         # 根据 query_type 决定是否使用 RAG
         if query_type == "analysis":
@@ -140,6 +186,25 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", histo
     print(f"🤖 [Prompt长度] {len(prompt)} 字符")
     print(f"🤖 [历史上下文长度] {len(history_context)} 字符")
     
+    # 先进行意图分类，检查是否为工具类意图
+    from .intent_classifier import get_intent_classifier, TOOL_INTENTS
+    classifier = get_intent_classifier()
+    intent_result = classifier.classify_intent(prompt)
+    
+    print(f"🔍 [意图分类] 意图: {intent_result.intent.value}, 置信度: {intent_result.confidence:.3f}")
+    
+    # 如果是工具类意图，执行工具并将结果传递给LLM
+    tool_result = None
+    if intent_result.intent in TOOL_INTENTS:
+        print(f"🔧 [工具调用] 检测到工具类意图: {intent_result.intent.value}")
+        tool_func = classifier.tools.get(intent_result.intent)
+        if tool_func:
+            tool_result = tool_func(prompt)
+            print(f"✅ [工具执行] 工具执行完成，结果长度: {len(tool_result)} 字符")
+            print(f"🔧 [工具结果] 将工具结果传递给LLM进行分析和流式回答")
+        else:
+            print(f"⚠️ [工具调用] 未找到对应的工具函数: {intent_result.intent.value}")
+    
     from model_config import CURRENT_CONFIG
     use_api = CURRENT_CONFIG.get('use_api', False)
     
@@ -166,6 +231,28 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", histo
         for turn in compressed_turns:
             messages.append(ChatMessage(role="user", content=turn.user_input))
             messages.append(ChatMessage(role="assistant", content=turn.assistant_reply))
+    
+    # 如果执行了工具，将工具结果作为上下文传递给LLM进行流式回答
+    if tool_result:
+        # 构建包含工具结果的prompt
+        enhanced_prompt = f"""用户问题：{prompt}
+
+工具执行结果：
+{tool_result}
+
+请基于以上工具执行结果，对用户的问题进行详细分析和回答。要求：
+1. 对工具结果进行总结和分析
+2. 指出关键问题和异常
+3. 提供具体的建议和解决方案
+4. 用清晰、专业的方式组织回答"""
+        
+        print(f"🤖 [工具增强Prompt] 构建完成，长度: {len(enhanced_prompt)} 字符")
+        messages.append(ChatMessage(role="user", content=enhanced_prompt))
+        
+        # 流式调用 LLM
+        llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
+        print(f"🤖 [流式生成] 开始基于工具结果流式生成回复...")
+        return llm.stream_chat(messages)
     
     # 根据 query_type 决定是否使用 RAG
     if query_type == "analysis":
