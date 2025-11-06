@@ -61,6 +61,8 @@ const formatTime = (date) => {
   display: flex;
   margin-bottom: 1rem;
   max-width: 80%;
+  min-width: 0; /* 允许flex子元素缩小 */
+  width: fit-content; /* 根据内容自适应宽度 */
 }
 
 .message.user-message {
@@ -102,6 +104,12 @@ const formatTime = (date) => {
   padding: 0.75rem 1rem;
   border-radius: var(--radius);
   position: relative;
+  min-width: 0; /* 允许内容缩小 */
+  max-width: 100%; /* 严格限制最大宽度 */
+  overflow: hidden; /* 防止内容溢出 */
+  word-wrap: break-word; /* 长单词自动换行 */
+  overflow-wrap: break-word; /* 长单词自动换行 */
+  box-sizing: border-box; /* 确保padding计算在内 */
 }
 
 .message:not(.user-message) .message-content {
@@ -127,6 +135,8 @@ const formatTime = (date) => {
 .markdown-body {
   line-height: 1.6;
   word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%; /* 限制最大宽度 */
 }
 
 .markdown-body :deep(h1),
@@ -161,9 +171,12 @@ const formatTime = (date) => {
   background-color: var(--code-block-bg, #f6f8fa);
   border-radius: 6px;
   padding: 1em;
-  overflow-x: auto;
+  overflow-x: auto; /* 横向滚动 */
+  overflow-y: hidden; /* 隐藏纵向滚动 */
   margin: 0.5em 0;
   border: 1px solid var(--border-color);
+  max-width: 100%; /* 限制最大宽度 */
+  white-space: pre; /* 保持代码格式 */
 }
 
 .markdown-body :deep(pre code) {
@@ -172,6 +185,9 @@ const formatTime = (date) => {
   padding: 0;
   font-size: 0.85em;
   line-height: 1.45;
+  white-space: pre; /* 保持代码格式，不自动换行 */
+  word-wrap: normal; /* 不自动换行 */
+  overflow-wrap: normal; /* 不自动换行 */
 }
 
 .markdown-body :deep(blockquote) {
@@ -198,12 +214,16 @@ const formatTime = (date) => {
   border-collapse: collapse;
   width: 100%;
   margin: 0.5em 0;
+  display: block; /* 允许表格滚动 */
+  overflow-x: auto; /* 横向滚动 */
+  max-width: 100%; /* 限制最大宽度 */
 }
 
 .markdown-body :deep(table th),
 .markdown-body :deep(table td) {
   border: 1px solid var(--border-color);
   padding: 0.5em;
+  white-space: nowrap; /* 表格单元格不换行 */
 }
 
 .markdown-body :deep(table th) {
@@ -233,5 +253,28 @@ const formatTime = (date) => {
 
 .markdown-body :deep(em) {
   font-style: italic;
+}
+
+/* 自定义滚动条样式（用于代码块和表格） */
+.markdown-body :deep(pre)::-webkit-scrollbar,
+.markdown-body :deep(table)::-webkit-scrollbar {
+  height: 8px;
+}
+
+.markdown-body :deep(pre)::-webkit-scrollbar-track,
+.markdown-body :deep(table)::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.markdown-body :deep(pre)::-webkit-scrollbar-thumb,
+.markdown-body :deep(table)::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.markdown-body :deep(pre)::-webkit-scrollbar-thumb:hover,
+.markdown-body :deep(table)::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 </style>

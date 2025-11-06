@@ -215,21 +215,12 @@ def chat(request, data: ChatIn):
         print("-" * 60)
     
     # 根据对话类型选择不同的处理逻辑
-    if use_rag:
-        # 使用RAG + 对话历史
-        prompt = llm_context  # 对话历史作为基础上下文
-        print(f"🔧 [RAG模式] 将使用对话历史 + RAG检索结果")
-    else:
-        # 纯对话模式，不使用RAG
-        prompt = llm_context
-        print(f"🔧 [对话模式] 仅使用对话历史，不进行RAG检索")
-    
-    logger.info(f"传递给大模型的prompt：\n{prompt}")  # 调试日志
+    logger.info(f"传递给大模型的prompt：\n{llm_context}")  # 调试日志
     logger.info(f"查询类型：{query_type}")  # 记录查询类型
     
-    # 5. 调用大模型（根据模式选择不同策略）
+    # 5. 调用大模型（根据 query_type 选择策略）
     print(f"\n🔍 [缓存检查] 检查是否有缓存回复...")
-    cached_reply = get_cached_reply(prompt, session_id, user)
+    cached_reply = get_cached_reply(user_input, session_id, user)
     if cached_reply:
         reply = cached_reply
         print(f"✅ [缓存命中] 使用缓存回复，长度: {len(reply)} 字符")
@@ -237,27 +228,22 @@ def chat(request, data: ChatIn):
     else:
         print(f"❌ [缓存未命中] 调用大模型API...")
         
-        if use_rag:
-            # RAG模式：传递原始用户查询给RAG系统（RAG系统会自己检索日志）
-            print(f"🔍 [RAG模式] 使用RAG检索 + 对话历史")
+        if query_type == "analysis":
+            # 日志分析模式：使用 RAG
+            print(f"🔍 [RAG模式] 日志分析，使用 RAG 检索")
             print(f"🔍 [RAG查询] 原始查询: '{user_input}'")
-            print(f"🔍 [RAG查询] 查询类型: '{query_type}'")
-            # RAG系统会基于用户查询检索日志，然后结合对话历史生成回答
-            # 将用户查询和对话历史都传递给RAG系统
-            rag_query = user_input  # RAG系统使用原始查询进行检索
-            reply = deepseek_r1_api_call(rag_query, query_type)  # RAG系统会处理检索
+            reply = deepseek_r1_api_call(user_input, query_type)
         else:
-            # 纯对话模式：直接调用大模型，不使用RAG检索
-            print(f"💬 [对话模式] 纯对话，不使用RAG检索")
+            # 日常聊天模式：直接调用 LLM，不使用 RAG
+            print(f"💬 [对话模式] 日常聊天，不使用 RAG 检索")
             print(f"💬 [对话查询] 查询: '{user_input}'")
-            # 这里可以调用一个简化的LLM接口，不进行RAG检索
-            reply = deepseek_r1_api_call(prompt, "general_chat")  # 使用通用对话模式
+            reply = deepseek_r1_api_call(user_input, query_type)
         
         print(f"🤖 [大模型回复] 长度: {len(reply)} 字符")
         print(f"🤖 [回复内容] {reply[:100]}{'...' if len(reply) > 100 else ''}")
         
         # 设置缓存时传入session_id和user
-        set_cached_reply(prompt, reply, session_id, user)
+        set_cached_reply(user_input, reply, session_id, user)
         print(f"💾 [缓存保存] 回复已缓存")
     
     # 6. 智能上下文保存 → 改进！
@@ -351,17 +337,16 @@ def chat_stream(request, data: ChatIn):
                 yield f"data: {json.dumps({'error': '流式输出仅支持 API 模式'})}\n\n"
                 return
             
-            # 使用 DeepSeek API 流式调用
-            from deepseek_llm import DeepSeekLLM
-            from llama_index.core.llms import ChatMessage
+            # 使用新的流式调用函数（支持 RAG）
+            from .services import deepseek_r1_api_call_stream
             
-            llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
-            messages = [ChatMessage(role="user", content=user_input)]
+            print(f"🤖 [流式调用] 开始流式生成，query_type: {query_type}")
             
-            print(f"🤖 [流式调用] 开始流式生成...")
+            # 调用流式函数，支持 RAG
+            stream_response = deepseek_r1_api_call_stream(user_input, query_type)
             
             full_reply = ""
-            for response in llm.stream_chat(messages):
+            for response in stream_response:
                 delta = response.delta if hasattr(response, 'delta') else ""
                 if delta:
                     full_reply += delta

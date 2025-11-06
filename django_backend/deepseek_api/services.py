@@ -74,23 +74,40 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
     use_api = CURRENT_CONFIG.get('use_api', False)
     
     if use_api:
-        # 使用 DeepSeek API 直接对话（不走 RAG）
+        # 使用 DeepSeek API
         from deepseek_llm import DeepSeekLLM
         from llama_index.core.llms import ChatMessage
         
-        print(f"🤖 [纯对话模式] 直接调用 DeepSeek API，不使用 RAG 检索")
-        
-        llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=60)
-        messages = [ChatMessage(role="user", content=prompt)]
-        
-        print(f"🤖 [API请求] 发送请求到大模型...")
-        response = llm.chat(messages)
-        
-        result_text = response.message.content
-        print(f"🤖 [API响应] 收到回复，长度: {len(result_text)} 字符")
-        print(f"🤖 [回复内容] {result_text[:100]}{'...' if len(result_text) > 100 else ''}")
-        
-        return result_text
+        # 根据 query_type 决定是否使用 RAG
+        if query_type == "analysis":
+            # 日志分析模式：使用 RAG
+            print(f"🤖 [RAG模式] 日志分析，使用 RAG 检索")
+            system = get_log_system()
+            
+            print(f"🤖 [API请求] 发送请求到大模型...")
+            result = system.query(prompt, query_type=query_type)
+            time.sleep(0.5)
+            
+            response = result["response"]
+            print(f"🤖 [API响应] 收到回复，长度: {len(response)} 字符")
+            print(f"🤖 [回复内容] {response[:100]}{'...' if len(response) > 100 else ''}")
+            
+            return response
+        else:
+            # 日常聊天模式：直接调用 API，不使用 RAG
+            print(f"🤖 [纯对话模式] 日常聊天，直接调用 DeepSeek API，不使用 RAG 检索")
+            
+            llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=60)
+            messages = [ChatMessage(role="user", content=prompt)]
+            
+            print(f"🤖 [API请求] 发送请求到大模型...")
+            response = llm.chat(messages)
+            
+            result_text = response.message.content
+            print(f"🤖 [API响应] 收到回复，长度: {len(result_text)} 字符")
+            print(f"🤖 [回复内容] {result_text[:100]}{'...' if len(result_text) > 100 else ''}")
+            
+            return result_text
     else:
         # 使用本地 Ollama + RAG 系统
         print(f"🤖 [RAG模式] 使用本地 Ollama + RAG 检索")
@@ -105,6 +122,60 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
         print(f"🤖 [回复内容] {response[:100]}{'...' if len(response) > 100 else ''}")
         
         return response
+
+def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis"):
+    """
+    流式调用 DeepSeek API（支持 RAG）
+    
+    Args:
+        prompt: 用户输入的问题
+        query_type: 查询类型（analysis: 日志分析, general_chat: 日常聊天）
+    
+    Yields:
+        流式响应的生成器
+    """
+    print(f"\n🤖 [流式调用] 开始流式调用 DeepSeek API")
+    print(f"🤖 [调用参数] query_type: '{query_type}'")
+    print(f"🤖 [Prompt长度] {len(prompt)} 字符")
+    
+    from model_config import CURRENT_CONFIG
+    use_api = CURRENT_CONFIG.get('use_api', False)
+    
+    if not use_api:
+        raise Exception("流式输出仅支持 API 模式")
+    
+    from deepseek_llm import DeepSeekLLM
+    from llama_index.core.llms import ChatMessage
+    
+    # 根据 query_type 决定是否使用 RAG
+    if query_type == "analysis":
+        # 日志分析模式：使用 RAG 检索，然后流式生成
+        print(f"🤖 [RAG模式] 日志分析，先进行 RAG 检索...")
+        system = get_log_system()
+        
+        # 1. RAG 检索相关日志
+        log_results = system.retrieve_logs(prompt)
+        print(f"🤖 [RAG检索] 检索到 {len(log_results)} 条相关日志")
+        
+        # 2. 构建包含检索结果的 prompt
+        rag_prompt = system._build_prompt_string(prompt, {"results": log_results}, query_type)
+        print(f"🤖 [RAG Prompt] 构建完成，长度: {len(rag_prompt)} 字符")
+        
+        # 3. 流式调用 LLM
+        llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
+        messages = [ChatMessage(role="user", content=rag_prompt)]
+        
+        print(f"🤖 [流式生成] 开始流式生成回复...")
+        return llm.stream_chat(messages)
+    else:
+        # 日常聊天模式：直接流式调用，不使用 RAG
+        print(f"🤖 [纯对话模式] 日常聊天，直接流式调用...")
+        
+        llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
+        messages = [ChatMessage(role="user", content=prompt)]
+        
+        print(f"🤖 [流式生成] 开始流式生成回复...")
+        return llm.stream_chat(messages)
 
 def create_api_key(user: str) -> str:
     """创建 API Key 并保存到数据库"""
