@@ -85,24 +85,35 @@ export const useStore = defineStore('main', {
       
       lines.forEach(line => {
         if (line.startsWith('用户：')) {
+          // 保存上一条消息
           if (currentMessage) {
             this.addMessage(sessionId, currentMessage.isUser, currentMessage.content);
           }
+          // 开始新的用户消息
           currentMessage = {
             isUser: true,
             content: line.replace('用户：', '').trim()
           };
         } else if (line.startsWith('回复：')) {
+          // 保存上一条消息
           if (currentMessage) {
             this.addMessage(sessionId, currentMessage.isUser, currentMessage.content);
           }
+          // 开始新的AI回复
           currentMessage = {
             isUser: false,
             content: line.replace('回复：', '').trim()
           };
+        } else if (line.startsWith('---')) {
+          // 分隔线，跳过
+          return;
+        } else if (currentMessage && line.trim()) {
+          // 多行内容，追加到当前消息
+          currentMessage.content += '\n' + line;
         }
       });
       
+      // 保存最后一条消息
       if (currentMessage) {
         this.addMessage(sessionId, currentMessage.isUser, currentMessage.content);
       }

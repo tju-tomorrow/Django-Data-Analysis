@@ -376,8 +376,13 @@ def chat_stream(request, data: ChatIn):
             }
             
             from .conversation_manager import ConversationType
+            
+            # 解析现有历史
+            historical_turns = conversation_manager.parse_conversation_history(session.context)
+            
+            # 添加新的对话轮次
             updated_turns = conversation_manager.add_new_turn(
-                [], user_input, full_reply, ConversationType.GENERAL_QA, timestamp, metadata
+                historical_turns, user_input, full_reply, ConversationType.GENERAL_QA, timestamp, metadata
             )
             
             new_context = conversation_manager.format_context_for_storage(updated_turns)
