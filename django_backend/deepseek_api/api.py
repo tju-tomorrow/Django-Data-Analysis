@@ -1,6 +1,6 @@
 from ninja import NinjaAPI, Router
 # from ninja.security import BaseAuth
-from django.http import HttpRequest
+from django.http import HttpRequest, StreamingHttpResponse
 from typing import Optional
 from . import services
 from django.conf import settings
@@ -10,6 +10,7 @@ from .services import get_or_create_session, deepseek_r1_api_call, get_cached_re
 from .conversation_manager import ConversationManager, ConversationType
 from datetime import datetime
 import logging
+import json
 logger = logging.getLogger(__name__)
 
 # 初始化对话管理器
@@ -307,6 +308,98 @@ def chat(request, data: ChatIn):
         # 前端需要的时间戳由前端生成，后端可返回当前时间供参考
         "timestamp": datetime.now().strftime("%H:%M:%S")
     }
+
+@router.post("/chat/stream")
+def chat_stream(request, data: ChatIn):
+    """流式聊天接口"""
+    print("=" * 80)
+    print("🚀 [流式对话] 开始处理 Stream Chat 请求")
+    print("=" * 80)
+    
+    # 认证验证
+    if not request.auth:
+        return StreamingHttpResponse(
+            iter([f"data: {json.dumps({'error': '请先登录'})}\n\n"]),
+            content_type='text/event-stream'
+        )
+    
+    session_id = data.session_id.strip() or "default_session"
+    user_input = data.user_input.strip()
+    query_type = data.query_type or "general_chat"
+    
+    print(f"📝 [流式请求] session_id: '{session_id}', query_type: '{query_type}'")
+    print(f"📝 [用户输入] {user_input}")
+    
+    if not user_input:
+        return StreamingHttpResponse(
+            iter([f"data: {json.dumps({'error': '请输入消息内容'})}\n\n"]),
+            content_type='text/event-stream'
+        )
+    
+    # 获取会话
+    user = request.auth
+    session = get_or_create_session(session_id, user)
+    
+    def stream_generator():
+        """生成器函数：流式返回"""
+        try:
+            from model_config import CURRENT_CONFIG
+            use_api = CURRENT_CONFIG.get('use_api', False)
+            
+            if not use_api:
+                # 非 API 模式，返回错误
+                yield f"data: {json.dumps({'error': '流式输出仅支持 API 模式'})}\n\n"
+                return
+            
+            # 使用 DeepSeek API 流式调用
+            from deepseek_llm import DeepSeekLLM
+            from llama_index.core.llms import ChatMessage
+            
+            llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
+            messages = [ChatMessage(role="user", content=user_input)]
+            
+            print(f"🤖 [流式调用] 开始流式生成...")
+            
+            full_reply = ""
+            for response in llm.stream_chat(messages):
+                delta = response.delta if hasattr(response, 'delta') else ""
+                if delta:
+                    full_reply += delta
+                    # 发送增量内容
+                    yield f"data: {json.dumps({'delta': delta, 'content': full_reply})}\n\n"
+            
+            # 保存到会话历史
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            metadata = {
+                "query_type": query_type,
+                "stream": True,
+            }
+            
+            from .conversation_manager import ConversationType
+            updated_turns = conversation_manager.add_new_turn(
+                [], user_input, full_reply, ConversationType.GENERAL_QA, timestamp, metadata
+            )
+            
+            new_context = conversation_manager.format_context_for_storage(updated_turns)
+            session.context = new_context
+            session.save()
+            
+            # 发送完成信号
+            yield f"data: {json.dumps({'done': True, 'content': full_reply})}\n\n"
+            print(f"✅ [流式完成] 总长度: {len(full_reply)} 字符")
+            
+        except Exception as e:
+            error_msg = str(e)
+            print(f"❌ [流式错误] {error_msg}")
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+    
+    response = StreamingHttpResponse(
+        stream_generator(),
+        content_type='text/event-stream'
+    )
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
 
 # 1. 修复 history 接口
 @router.get("/history", response={200: HistoryOut})

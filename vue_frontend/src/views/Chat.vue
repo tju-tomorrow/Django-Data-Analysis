@@ -113,18 +113,42 @@ const handleCreateSession = (sessionId) => {
 
 // 处理发送消息
 const handleSendMessage = async (content, queryType) => {
-  // 添加用户消息到界面
-  store.addMessage(currentSession.value, true, content);
-
   try {
     store.setLoading(true);
-    // 调用API发送消息
-    const response = await api.chat(currentSession.value, content, queryType);
-    // 添加机器人回复到界面
-    store.addMessage(currentSession.value, false, response.data.reply);
+    
+    // 1. 先添加用户消息到界面
+    const userMessageId = Date.now();
+    store.addMessage(currentSession.value, true, content, userMessageId);
+    
+    // 2. 等待一小段时间，确保用户消息 ID 和 AI 消息 ID 不同
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
+    // 3. 添加一个空的 AI 回复消息占位，用于流式更新
+    const botMessageId = Date.now();
+    store.addMessage(currentSession.value, false, "", botMessageId);
+    
+    // 4. 使用流式 API，逐步更新 AI 回复
+    await api.chatStream(
+      currentSession.value,
+      content,
+      queryType,
+      // onMessage: 收到增量内容时更新 AI 消息
+      (fullContent) => {
+        store.updateMessage(currentSession.value, botMessageId, fullContent);
+      },
+      // onError: 错误处理
+      (error) => {
+        store.setError(error);
+        store.setLoading(false);
+      },
+      // onComplete: 完成
+      (finalContent) => {
+        store.updateMessage(currentSession.value, botMessageId, finalContent);
+        store.setLoading(false);
+      }
+    );
   } catch (err) {
-    store.setError(err.response?.data?.error || "发送消息失败");
-  } finally {
+    store.setError(err.message || "发送消息失败");
     store.setLoading(false);
   }
 };

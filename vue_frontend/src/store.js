@@ -51,17 +51,27 @@ export const useStore = defineStore('main', {
     },
     
     // 保存消息到状态
-    addMessage(sessionId, isUser, content) {
+    addMessage(sessionId, isUser, content, messageId = null) {
       if (!this.messages[sessionId]) {
         this.messages[sessionId] = [];
       }
       
       this.messages[sessionId].push({
-        id: Date.now(),
+        id: messageId || Date.now(),
         isUser,
         content,
         timestamp: new Date()
       });
+    },
+    
+    // 更新消息内容（用于流式更新）
+    updateMessage(sessionId, messageId, content) {
+      if (!this.messages[sessionId]) return;
+      
+      const message = this.messages[sessionId].find(msg => msg.id === messageId);
+      if (message) {
+        message.content = content;
+      }
     },
     
     // 从历史记录加载消息

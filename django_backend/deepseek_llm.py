@@ -160,8 +160,76 @@ class DeepSeekLLM(LLM):
     def stream_chat(
         self, messages: Sequence[ChatMessage], **kwargs: Any
     ) -> ChatResponseGen:
-        """流式聊天（暂不支持）"""
-        raise NotImplementedError("DeepSeek 流式聊天暂未实现")
+        """流式聊天"""
+        # 转换消息格式
+        api_messages = []
+        for msg in messages:
+            api_messages.append({
+                "role": msg.role,
+                "content": msg.content,
+            })
+        
+        # 调用 DeepSeek API (流式)
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        
+        payload = {
+            "model": self._model,
+            "messages": api_messages,
+            "temperature": kwargs.get("temperature", self._temperature),
+            "max_tokens": kwargs.get("max_tokens", self._max_tokens),
+            "stream": True,  # 开启流式
+        }
+        
+        try:
+            logger.info(f"🚀 调用 DeepSeek API (流式) - 模型: {self._model}")
+            response = requests.post(
+                f"{self._base_url}/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=self._timeout,
+                stream=True,  # 流式响应
+            )
+            response.raise_for_status()
+            
+            # 生成器：逐块返回
+            def gen():
+                full_text = ""
+                for line in response.iter_lines():
+                    if line:
+                        line_text = line.decode('utf-8')
+                        if line_text.startswith('data: '):
+                            data_text = line_text[6:]  # 去掉 'data: '
+                            if data_text == '[DONE]':
+                                break
+                            try:
+                                import json
+                                data = json.loads(data_text)
+                                delta = data['choices'][0].get('delta', {})
+                                content = delta.get('content', '')
+                                if content:
+                                    full_text += content
+                                    yield ChatResponse(
+                                        message=ChatMessage(role="assistant", content=full_text),
+                                        delta=content,
+                                        raw=data,
+                                    )
+                            except:
+                                continue
+            
+            return gen()
+        
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ DeepSeek API 超时 - 超时时间: {self._timeout}秒")
+            raise Exception(f"DeepSeek API 调用超时（{self._timeout}秒）")
+        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ DeepSeek API 请求失败: {e}")
+            if hasattr(e.response, 'text'):
+                logger.error(f"错误详情: {e.response.text}")
+            raise Exception(f"DeepSeek API 调用失败: {e}")
     
     def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
         """流式补全（暂不支持）"""

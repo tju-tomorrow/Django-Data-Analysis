@@ -43,6 +43,68 @@ export default {
     return api.post('/chat', { session_id: sessionId, user_input: userInput, query_type: queryType });
   },
   
+  // 流式聊天消息
+  async chatStream(sessionId, userInput, queryType = "general_chat", onMessage, onError, onComplete) {
+    const token = localStorage.getItem('apiKey');
+    const baseURL = window.location.origin;
+    
+    try {
+      const response = await fetch(`${baseURL}/api/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          user_input: userInput,
+          query_type: queryType,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // 保留最后一个不完整的行
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.error) {
+                onError(parsed.error);
+                return;
+              }
+              if (parsed.done) {
+                onComplete(parsed.content);
+                return;
+              }
+              if (parsed.delta) {
+                onMessage(parsed.content);
+              }
+            } catch (e) {
+              console.error('解析 SSE 数据失败:', e);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      onError(error.message || '网络错误');
+    }
+  },
+  
   // 获取历史记录
   getHistory(sessionId) {
     return api.get('/history', { params: { session_id: sessionId } });
