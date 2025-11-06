@@ -18,8 +18,15 @@
   --input-bg: #ffffff;
   --input-border: #e2e8f0;
   --input-focus-border: #4f46e5;
+  --input-text: #1e293b;
+  --input-placeholder: #94a3b8;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --radius: 8px;
+  
+  /* 输入框专用颜色 */
+  --input-box-bg: #ffffff;
+  --input-box-border: #e2e8f0;
+  --input-box-focus-border: #4f46e5;
   
   /* 代码块颜色 */
   --code-bg: rgba(175, 184, 193, 0.2);
@@ -30,32 +37,39 @@
 
 /* 深色主题 */
 :root[data-theme="dark"] {
-  --primary-color: #6366f1;
-  --primary-light: #818cf8;
-  --primary-dark: #4f46e5;
-  --secondary-color: #10b981;
+  --primary-color: #818cf8;
+  --primary-light: #a5b4fc;
+  --primary-dark: #6366f1;
+  --secondary-color: #34d399;
   --bg-color: #0f172a;
   --bg-secondary: #1e293b;
   --card-bg: #1e293b;
-  --text-color: #f1f5f9;
+  --text-color: #f8fafc;
   --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --border-color: #334155;
-  --user-message: #3730a3;
-  --bot-message: #334155;
-  --danger-color: #ef4444;
+  --text-secondary: #cbd5e1;
+  --border-color: #475569;
+  --user-message: #4c1d95;
+  --bot-message: #1e293b;
+  --danger-color: #f87171;
   --hover-color: #334155;
-  --input-bg: #0f172a;
+  --input-bg: #1e293b;
   --input-border: #475569;
-  --input-focus-border: #6366f1;
+  --input-focus-border: #818cf8;
+  --input-text: #f8fafc;
+  --input-placeholder: #94a3b8;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
   --radius: 8px;
   
+  /* 输入框专用颜色 */
+  --input-box-bg: #1e293b;
+  --input-box-border: #475569;
+  --input-box-focus-border: #818cf8;
+  
   /* 代码块颜色 - 深色主题优化 */
   --code-bg: rgba(110, 118, 129, 0.4);
-  --code-color: #ff6b6b;
+  --code-color: #fbbf24;
   --code-block-bg: #0d1117;
-  --code-block-color: #c9d1d9;
+  --code-block-color: #e2e8f0;
 }
 
 * {
@@ -65,10 +79,22 @@
   font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
+html {
+  /* 启用硬件加速 */
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
   background-color: var(--bg-color);
   color: var(--text-primary);
   min-height: 100vh;
+  /* 优化滚动性能 */
+  -webkit-overflow-scrolling: touch;
+  /* 减少重绘 */
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 .container {

@@ -90,6 +90,18 @@ const createSession = () => {
   flex-direction: column;
   height: 100%;
   border-right: 1px solid var(--border-color);
+  animation: fadeInSlide 0.3s ease-out;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .session-list-header {
@@ -124,8 +136,28 @@ const createSession = () => {
   border-radius: var(--radius);
   margin-bottom: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  animation: slideInItem 0.3s ease-out backwards;
 }
+
+@keyframes slideInItem {
+  from {
+    opacity: 0;
+    transform: translateX(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 为每个会话项添加延迟动画 */
+.session-item:nth-child(1) { animation-delay: 0.05s; }
+.session-item:nth-child(2) { animation-delay: 0.1s; }
+.session-item:nth-child(3) { animation-delay: 0.15s; }
+.session-item:nth-child(4) { animation-delay: 0.2s; }
+.session-item:nth-child(5) { animation-delay: 0.25s; }
+.session-item:nth-child(n+6) { animation-delay: 0.3s; }
 
 .session-item:hover {
   background-color: var(--bg-color);

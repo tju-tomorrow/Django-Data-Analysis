@@ -146,19 +146,62 @@ const handleFileUpload = (event) => {
 
 .query-type-select {
   width: fit-content;
+  min-width: 120px;
   padding: 0.5rem 1rem;
+  padding-right: 2.5rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background-color: var(--card-bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
   color: var(--text-color);
   cursor: pointer;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  outline: none;
+  position: relative;
+}
+
+.query-type-select:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  background-color: var(--hover-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.query-type-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background-color: var(--card-bg);
+}
+
+.query-type-select:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .query-type-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+}
+
+/* 深色主题下的下拉箭头颜色 */
+:root[data-theme="dark"] .query-type-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* 选项样式优化 */
+.query-type-select option {
+  padding: 0.5rem;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 4px;
 }
 
 .messageBox {
@@ -167,15 +210,16 @@ const handleFileUpload = (event) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #2d2d2d;
+  background-color: var(--input-box-bg, var(--card-bg));
   padding: 0 15px;
   border-radius: 10px;
-  border: 1px solid rgb(63, 63, 63);
-  transition: border-color 0.3s;
+  border: 1px solid var(--input-box-border, var(--border-color));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .messageBox:focus-within {
-  border: 1px solid rgb(110, 110, 110);
+  border-color: var(--input-box-focus-border, var(--primary-color));
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
 }
 
 .fileUploadWrapper {
@@ -214,12 +258,12 @@ const handleFileUpload = (event) => {
 }
 
 .fileUploadWrapper label:hover svg path {
-  stroke: #fff;
+  stroke: var(--text-primary);
 }
 
 .fileUploadWrapper label:hover svg circle {
-  stroke: #fff;
-  fill: #3c3c3c;
+  stroke: var(--text-primary);
+  fill: var(--hover-color);
 }
 
 .fileUploadWrapper label:hover .tooltip {
@@ -232,14 +276,14 @@ const handleFileUpload = (event) => {
   top: -40px;
   display: none;
   opacity: 0;
-  color: white;
+  color: var(--text-primary);
   font-size: 10px;
   white-space: nowrap;
-  background-color: #000;
+  background-color: var(--card-bg);
   padding: 6px 10px;
-  border: 1px solid #3c3c3c;
+  border: 1px solid var(--border-color);
   border-radius: 5px;
-  box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.596);
+  box-shadow: var(--shadow);
   transition: all 0.3s;
   z-index: 10;
 }
@@ -251,18 +295,24 @@ const handleFileUpload = (event) => {
   outline: none;
   border: none;
   padding-left: 10px;
-  color: white;
+  color: var(--input-text, var(--text-primary));
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.875rem;
 }
 
 #messageInput::placeholder {
-  color: #6c6c6c;
+  color: var(--input-placeholder, var(--text-secondary));
+  opacity: 0.7;
+}
+
+#messageInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .messageBox:focus-within #sendButton:not(:disabled) svg path {
-  fill: #3c3c3c;
-  stroke: white;
+  fill: var(--hover-color);
+  stroke: var(--primary-color);
 }
 
 #sendButton {
@@ -286,8 +336,8 @@ const handleFileUpload = (event) => {
 }
 
 #sendButton:not(:disabled):hover svg path {
-  fill: #3c3c3c;
-  stroke: white;
+  fill: var(--hover-color);
+  stroke: var(--primary-color);
 }
 
 #sendButton svg {
@@ -308,35 +358,24 @@ const handleFileUpload = (event) => {
   fill: rgba(239, 68, 68, 0.2);
 }
 
-/* 深色主题适配 */
-:root[data-theme="dark"] .messageBox {
-  background-color: #2d2d2d;
-  border: 1px solid rgb(63, 63, 63);
+/* SVG 图标颜色优化 */
+.fileUploadWrapper label svg circle,
+.fileUploadWrapper label svg path {
+  stroke: var(--text-secondary);
 }
 
-:root[data-theme="dark"] .messageBox:focus-within {
-  border: 1px solid rgb(110, 110, 110);
+#sendButton svg path {
+  stroke: var(--text-secondary);
 }
 
 /* 浅色主题适配 */
-:root[data-theme="light"] .messageBox,
-:root .messageBox {
-  background-color: #f5f5f5;
-  border: 1px solid #d0d0d0;
+:root[data-theme="light"] .messageBox {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
 }
 
-:root[data-theme="light"] .messageBox:focus-within,
-:root .messageBox:focus-within {
-  border: 1px solid #8c8c8c;
-}
-
-:root[data-theme="light"] #messageInput,
-:root #messageInput {
-  color: #1e293b;
-}
-
-:root[data-theme="light"] #messageInput::placeholder,
-:root #messageInput::placeholder {
-  color: #94a3b8;
+:root[data-theme="light"] .messageBox:focus-within {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 </style>

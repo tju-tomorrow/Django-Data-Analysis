@@ -277,26 +277,61 @@ const handleLogout = () => {
 .sidebar {
   width: 300px;
   min-width: 300px;
+  max-width: 300px;
   display: flex;
   flex-direction: column;
   background-color: var(--card-bg);
   border-right: 1px solid var(--border-color);
-  transition: transform 0.3s ease, width 0.3s ease, min-width 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   position: relative;
   z-index: 1;
+  will-change: transform, opacity, width;
+  opacity: 1;
 }
 
 .sidebar.collapsed {
-  transform: translateX(-100%);
+  transform: translate3d(-100%, 0, 0);
   width: 0;
   min-width: 0;
+  max-width: 0;
+  opacity: 0;
   border-right: none;
+  pointer-events: none;
+}
+
+/* 侧边栏内容动画 */
+.sidebar > * {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar.collapsed > * {
+  opacity: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
 }
 
 .user-info {
   padding: 1rem;
   border-top: 1px solid var(--border-color);
+  animation: fadeInUp 0.3s ease-out 0.2s backwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-actions {
@@ -329,7 +364,7 @@ const handleLogout = () => {
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 50%;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -340,11 +375,12 @@ const handleLogout = () => {
   position: absolute;
   left: 1rem;
   z-index: 10;
+  will-change: transform;
 }
 
 .sidebar-toggle-btn:hover {
   background-color: var(--hover-color);
-  transform: scale(1.1);
+  transform: scale3d(1.1, 1.1, 1);
 }
 
 .header-center {
@@ -354,17 +390,18 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   text-align: center;
-  animation: fadeInUp 0.6s ease-out;
+  animation: fadeInUp 0.4s ease-out;
+  will-change: transform, opacity;
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translate3d(0, 10px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -377,7 +414,8 @@ const handleLogout = () => {
   justify-content: center;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
-  animation: fadeInUp 0.6s ease-out 0.1s both;
+  animation: fadeInUp 0.4s ease-out 0.05s both;
+  will-change: transform, opacity;
 }
 
 .title-main {
@@ -399,8 +437,9 @@ const handleLogout = () => {
   margin: 0;
   font-weight: 400;
   margin-bottom: 0.5rem;
-  animation: fadeInUp 0.6s ease-out 0.2s both;
+  animation: fadeInUp 0.4s ease-out 0.1s both;
   letter-spacing: 0.02em;
+  will-change: transform, opacity;
 }
 
 .header-session {
@@ -412,13 +451,14 @@ const handleLogout = () => {
   background-color: var(--bg-secondary);
   border-radius: 12px;
   display: inline-block;
-  animation: fadeInUp 0.6s ease-out 0.3s both;
-  transition: all 0.3s ease;
+  animation: fadeInUp 0.4s ease-out 0.15s both;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  will-change: transform, opacity;
 }
 
 .header-session:hover {
   background-color: var(--hover-color);
-  transform: translateY(-1px);
+  transform: translate3d(0, -1px, 0);
 }
 
 .messages-container {
@@ -429,6 +469,10 @@ const handleLogout = () => {
   flex-direction: column;
   min-width: 0; /* 关键：允许flex子元素缩小 */
   max-width: 100%; /* 限制最大宽度为父容器的100% */
+  /* 优化滚动性能 */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  contain: layout style paint;
 }
 
 .empty-state {
@@ -489,7 +533,7 @@ const handleLogout = () => {
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 50%;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -499,10 +543,11 @@ const handleLogout = () => {
   position: absolute;
   right: 1rem;
   z-index: 10;
+  will-change: transform;
 }
 
 .settings-btn:hover {
   background-color: var(--hover-color);
-  transform: scale(1.1) rotate(90deg);
+  transform: scale3d(1.1, 1.1, 1) rotate(90deg);
 }
 </style>

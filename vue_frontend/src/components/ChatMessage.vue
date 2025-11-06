@@ -43,12 +43,28 @@ marked.setOptions({
   mangle: false
 });
 
+// 缓存渲染结果，避免重复计算
+let cachedContent = '';
+let cachedHtml = '';
+
 // 渲染 Markdown（仅用于 AI 回复）
 const renderedMarkdown = computed(() => {
   if (!props.content) return '';
+  
+  // 如果内容没有变化，直接返回缓存
+  if (props.content === cachedContent && cachedHtml) {
+    return cachedHtml;
+  }
+  
   const html = marked(props.content);
   // 使用 DOMPurify 防止 XSS 攻击
-  return DOMPurify.sanitize(html);
+  const sanitized = DOMPurify.sanitize(html);
+  
+  // 更新缓存
+  cachedContent = props.content;
+  cachedHtml = sanitized;
+  
+  return sanitized;
 });
 
 const formatTime = (date) => {
@@ -63,6 +79,9 @@ const formatTime = (date) => {
   max-width: 80%;
   min-width: 0; /* 允许flex子元素缩小 */
   width: fit-content; /* 根据内容自适应宽度 */
+  /* 优化渲染性能 */
+  contain: layout style;
+  will-change: transform;
 }
 
 .message.user-message {
