@@ -16,8 +16,16 @@
   --danger-color: #ef4444;
   --hover-color: #f1f5f9;
   --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --input-focus-border: #4f46e5;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --radius: 8px;
+  
+  /* 代码块颜色 */
+  --code-bg: rgba(175, 184, 193, 0.2);
+  --code-color: #e01e5a;
+  --code-block-bg: #f6f8fa;
+  --code-block-color: #24292e;
 }
 
 /* 深色主题 */
@@ -37,9 +45,17 @@
   --bot-message: #334155;
   --danger-color: #ef4444;
   --hover-color: #334155;
-  --input-bg: #1e293b;
+  --input-bg: #0f172a;
+  --input-border: #475569;
+  --input-focus-border: #6366f1;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
   --radius: 8px;
+  
+  /* 代码块颜色 - 深色主题优化 */
+  --code-bg: rgba(110, 118, 129, 0.4);
+  --code-color: #ff6b6b;
+  --code-block-bg: #0d1117;
+  --code-block-color: #c9d1d9;
 }
 
 * {
@@ -97,17 +113,25 @@ button.danger:hover {
   background-color: #dc2626;
 }
 
-input, textarea {
-  border: 1px solid var(--border-color);
+input, textarea, select {
+  border: 1px solid var(--input-border, var(--border-color));
   border-radius: var(--radius);
   padding: 0.5rem 1rem;
   font-size: 1rem;
-  transition: border-color 0.2s ease;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  transition: all 0.2s ease;
 }
 
-input:focus, textarea:focus {
+input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--input-focus-border, var(--primary-color));
+  background-color: var(--input-bg);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
 }
 
 .card {

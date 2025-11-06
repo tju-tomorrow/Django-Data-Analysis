@@ -149,7 +149,8 @@ const formatTime = (date) => {
 }
 
 .markdown-body :deep(code) {
-  background-color: rgba(175, 184, 193, 0.2);
+  background-color: var(--code-bg, rgba(175, 184, 193, 0.2));
+  color: var(--code-color, #e01e5a);
   padding: 0.2em 0.4em;
   border-radius: 3px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -157,25 +158,30 @@ const formatTime = (date) => {
 }
 
 .markdown-body :deep(pre) {
-  background-color: #f6f8fa;
+  background-color: var(--code-block-bg, #f6f8fa);
   border-radius: 6px;
   padding: 1em;
   overflow-x: auto;
   margin: 0.5em 0;
+  border: 1px solid var(--border-color);
 }
 
 .markdown-body :deep(pre code) {
   background-color: transparent;
+  color: var(--code-block-color, #24292e);
   padding: 0;
   font-size: 0.85em;
   line-height: 1.45;
 }
 
 .markdown-body :deep(blockquote) {
-  border-left: 4px solid #dfe2e5;
+  border-left: 4px solid var(--border-color);
   padding-left: 1em;
   margin: 0.5em 0;
-  color: #6a737d;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary, rgba(0, 0, 0, 0.05));
+  padding: 0.5em 1em;
+  border-radius: 4px;
 }
 
 .markdown-body :deep(ul),
@@ -196,27 +202,28 @@ const formatTime = (date) => {
 
 .markdown-body :deep(table th),
 .markdown-body :deep(table td) {
-  border: 1px solid #dfe2e5;
+  border: 1px solid var(--border-color);
   padding: 0.5em;
 }
 
 .markdown-body :deep(table th) {
-  background-color: #f6f8fa;
+  background-color: var(--bg-secondary);
   font-weight: 600;
 }
 
 .markdown-body :deep(a) {
-  color: #0366d6;
+  color: var(--primary-color);
   text-decoration: none;
 }
 
 .markdown-body :deep(a:hover) {
   text-decoration: underline;
+  color: var(--primary-light);
 }
 
 .markdown-body :deep(hr) {
   border: none;
-  border-top: 1px solid #dfe2e5;
+  border-top: 1px solid var(--border-color);
   margin: 1em 0;
 }
 
