@@ -56,13 +56,63 @@
         <div v-if="messages.length === 0" class="empty-state">
           <div class="welcome-content">
             <h3>欢迎使用 LogOracle 日志神谕</h3>
-            <p>基于 RAG 技术的智能日志分析平台</p>
+            <p class="subtitle">基于 RAG 技术的智能日志分析平台</p>
+            
             <div class="features">
-              <div class="feature-item">🔍 智能检索</div>
-              <div class="feature-item">💡 深度分析</div>
-              <div class="feature-item">🎯 精准诊断</div>
-              <div class="feature-item">📊 多维度洞察</div>
+              <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-text">
+                  <div class="feature-title">智能检索</div>
+                  <div class="feature-desc">快速定位相关日志</div>
+                </div>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">💡</div>
+                <div class="feature-text">
+                  <div class="feature-title">深度分析</div>
+                  <div class="feature-desc">AI 驱动的专业分析</div>
+                </div>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-text">
+                  <div class="feature-title">精准诊断</div>
+                  <div class="feature-desc">识别问题根因</div>
+                </div>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <div class="feature-text">
+                  <div class="feature-title">多维度洞察</div>
+                  <div class="feature-desc">全面的系统分析</div>
+                </div>
+              </div>
             </div>
+
+            <div class="example-queries">
+              <p class="example-title">💬 试试这些问题：</p>
+              <div class="query-examples">
+                <button 
+                  class="example-query" 
+                  @click="handleExampleQuery('分析最近的错误日志')"
+                >
+                  "分析最近的错误日志"
+                </button>
+                <button 
+                  class="example-query" 
+                  @click="handleExampleQuery('系统性能瓶颈在哪里？')"
+                >
+                  "系统性能瓶颈在哪里？"
+                </button>
+                <button 
+                  class="example-query" 
+                  @click="handleExampleQuery('有哪些安全警告？')"
+                >
+                  "有哪些安全警告？"
+                </button>
+              </div>
+            </div>
+
             <p class="start-hint">开始提问，让 LogOracle 为您揭示日志中的真相</p>
           </div>
         </div>
@@ -204,6 +254,12 @@ const handleCreateSession = async (sessionId) => {
     // 新会话没有历史记录是正常的，忽略错误
     console.log('新会话，无历史记录');
   }
+};
+
+// 处理示例查询
+const handleExampleQuery = (query) => {
+  // 触发发送消息，使用默认的日志分析类型
+  handleSendMessage(query, 'analysis');
 };
 
 // 处理发送消息
@@ -525,26 +581,106 @@ const handleLogout = () => {
   margin-bottom: 0.5rem;
 }
 
-.welcome-content > p {
+.welcome-content .subtitle {
   font-size: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
   color: var(--text-secondary);
 }
 
 .features {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
-  margin: 1.5rem 0;
+  margin: 2rem 0;
+  max-width: 800px;
+  width: 100%;
 }
 
-.feature-item {
-  padding: 0.5rem 1rem;
+.feature-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
   background-color: var(--card-bg);
-  border-radius: 0.5rem;
-  font-size: 0.9rem;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--primary-color);
+}
+
+.feature-icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.feature-text {
+  flex: 1;
+}
+
+.feature-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.feature-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.example-queries {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  max-width: 600px;
+  width: 100%;
+}
+
+.example-title {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.query-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.example-query {
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.example-query:hover {
+  background-color: var(--hover-color);
+  border-color: var(--primary-color);
+  transform: translateX(4px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.example-query:active {
+  transform: translateX(2px);
 }
 
 .start-hint {
