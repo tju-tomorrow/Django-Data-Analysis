@@ -7,7 +7,7 @@ import { onMounted } from 'vue';
 
 // 初始化主题
 onMounted(() => {
-  const savedTheme = localStorage.getItem('theme') || 'auto';
+  const savedTheme = localStorage.getItem('theme') || 'dark';
   applyTheme(savedTheme);
   
   // 监听系统主题变化

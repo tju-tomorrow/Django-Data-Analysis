@@ -1,6 +1,6 @@
 <template>
   <div class="chat-container">
-    <div class="sidebar">
+    <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <SessionList
         :sessions="sessions"
         :current-session="currentSession"
@@ -21,11 +21,30 @@
 
     <div class="chat-area">
       <div class="chat-header">
-        <div class="header-left">
-          <h1>LogOracle <span class="subtitle-cn">日志神谕</span></h1>
+        <button 
+          class="sidebar-toggle-btn" 
+          @click="toggleSidebar"
+          :title="sidebarCollapsed ? '展开会话栏' : '收起会话栏'"
+        >
+          <svg v-if="sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <polyline points="9 6 15 12 9 18"></polyline>
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="21" y1="12" x2="3" y2="12"></line>
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        
+        <div class="header-center">
+          <h1 class="header-title">
+            <span class="title-main">LogOracle</span>
+            <span class="subtitle-cn">日志神谕</span>
+          </h1>
           <p class="header-desc">智能日志分析平台 · 洞察系统真相</p>
-          <h2>当前会话: {{ currentSession }}</h2>
+          <h2 class="header-session">当前会话: {{ currentSession }}</h2>
         </div>
+        
         <button class="settings-btn" @click="showSettings = true" title="设置">
           ⚙️
         </button>
@@ -89,6 +108,24 @@ let abortController = null;
 // 设置弹窗显示状态
 const showSettings = ref(false);
 
+// 侧边栏收起状态（默认收起）
+const sidebarCollapsed = ref(true);
+
+// 切换侧边栏
+const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+  localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value.toString());
+};
+
+// 从 localStorage 恢复侧边栏状态
+onMounted(() => {
+  const saved = localStorage.getItem('sidebarCollapsed');
+  if (saved !== null) {
+    sidebarCollapsed.value = saved === 'true';
+  }
+  loadHistory(currentSession.value);
+});
+
 // 计算属性
 const sessions = computed(() => store.sessions);
 const currentSession = computed(() => store.currentSession);
@@ -109,10 +146,6 @@ const loadHistory = async (sessionId) => {
   }
 };
 
-// 挂载时加载当前会话历史
-onMounted(() => {
-  loadHistory(currentSession.value);
-});
 
 // 处理选择会话
 const handleSelectSession = async (sessionId) => {
@@ -243,10 +276,22 @@ const handleLogout = () => {
 
 .sidebar {
   width: 300px;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
   background-color: var(--card-bg);
   border-right: 1px solid var(--border-color);
+  transition: transform 0.3s ease, width 0.3s ease, min-width 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar.collapsed {
+  transform: translateX(-100%);
+  width: 0;
+  min-width: 0;
+  border-right: none;
 }
 
 .user-info {
@@ -269,42 +314,111 @@ const handleLogout = () => {
 }
 
 .chat-header {
-  padding: 1rem;
+  padding: 1.5rem 1rem;
   background-color: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
-.header-left h1 {
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  position: absolute;
+  left: 1rem;
+  z-index: 10;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: var(--hover-color);
+  transform: scale(1.1);
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header-title {
   color: var(--primary-color);
-  margin-bottom: 0.25rem;
-  font-size: 1.75rem;
+  margin: 0;
+  font-size: 2rem;
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.title-main {
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .subtitle-cn {
-  font-size: 1rem;
+  font-size: 1.1rem;
   color: var(--text-secondary);
   font-weight: 400;
   font-style: italic;
+  opacity: 0.9;
 }
 
 .header-desc {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin: 0.25rem 0 0.5rem 0;
-  font-weight: 400;
-}
-
-.header-left h2 {
   font-size: 0.9rem;
   color: var(--text-secondary);
+  margin: 0;
+  font-weight: 400;
+  margin-bottom: 0.5rem;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+  letter-spacing: 0.02em;
+}
+
+.header-session {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
   font-weight: 500;
-  margin-top: 0.25rem;
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  display: inline-block;
+  animation: fadeInUp 0.6s ease-out 0.3s both;
+  transition: all 0.3s ease;
+}
+
+.header-session:hover {
+  background-color: var(--hover-color);
+  transform: translateY(-1px);
 }
 
 .messages-container {
@@ -375,15 +489,20 @@ const handleLogout = () => {
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 50%;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
+  color: var(--text-primary);
+  position: absolute;
+  right: 1rem;
+  z-index: 10;
 }
 
 .settings-btn:hover {
   background-color: var(--hover-color);
+  transform: scale(1.1) rotate(90deg);
 }
 </style>
