@@ -38,12 +38,17 @@
         
         <div class="header-center">
           <div class="anime-character" @click="characterClick">
-            <img 
-              src="https://api.dicebear.com/7.x/adventurer/svg?seed=LogOracle&backgroundColor=b6e3ff,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50&accessoriesProbability=30&hair=shortHair&hairColor=0e0e0e,3c4a5b,6c757d&facialHairProbability=0" 
-              alt="二次元小人"
-              class="character-img"
-              @error="handleImageError"
-            />
+            <div class="character-container">
+              <img 
+                src="https://api.dicebear.com/7.x/lorelei/svg?seed=LogOracle&backgroundColor=b6e3ff,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50&hair=variant01,variant02,variant03,variant04&hairColor=0e0e0e,3c4a5b,6c757d&clothing=variant01,variant02,variant03" 
+                alt="可爱女角色"
+                class="character-img"
+                @error="handleImageError"
+              />
+              <div class="sparkle sparkle-1">✨</div>
+              <div class="sparkle sparkle-2">⭐</div>
+              <div class="sparkle sparkle-3">💫</div>
+            </div>
             <div class="character-bubble" v-if="showBubble">
               <span>{{ bubbleText }}</span>
             </div>
@@ -226,8 +231,8 @@ const characterClick = () => {
 
 // 图片加载失败处理
 const handleImageError = (event) => {
-  // 如果图片加载失败，使用备用方案
-  event.target.src = 'https://api.dicebear.com/7.x/bottts/svg?seed=LogOracle&backgroundColor=b6e3ff,c0aede';
+  // 如果图片加载失败，使用备用方案（可爱的女角色）
+  event.target.src = 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=LogOracle&backgroundColor=b6e3ff,c0aede,d1d4f9,ffd5dc';
   console.log('图片加载失败，使用备用图片');
 };
 
@@ -567,62 +572,147 @@ const handleSignUp = () => {
 
 .anime-character {
   position: absolute;
-  left: 10px;
+  left: 600px;
   top: 50%;
   transform: translateY(-50%);
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   z-index: 10;
-  animation: characterFloat 3s ease-in-out infinite, characterWiggle 2s ease-in-out infinite;
   cursor: pointer;
-  transition: transform 0.3s ease;
   user-select: none;
 }
 
-.anime-character:hover {
-  transform: translateY(-50%) scale(1.15);
-  animation-play-state: paused;
+.character-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  animation: characterFloat 3s ease-in-out infinite, characterWiggle 2.5s ease-in-out infinite, characterHeartbeat 2s ease-in-out infinite;
+  transform-origin: center center;
 }
 
-.anime-character:active {
-  transform: translateY(-50%) scale(0.95);
+.anime-character:hover .character-container {
+  animation: characterFloat 1s ease-in-out infinite, characterWiggle 1s ease-in-out infinite, characterHeartbeat 1s ease-in-out infinite, characterWave 0.5s ease-in-out infinite;
+  transform: scale(1.2);
+}
+
+.anime-character:active .character-container {
+  animation-play-state: paused;
+  transform: scale(0.9);
 }
 
 .character-img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 4px 8px rgba(129, 140, 248, 0.3));
-  animation: characterBlink 4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 12px rgba(129, 140, 248, 0.4));
+  animation: characterBlink 3s ease-in-out infinite, characterGlow 2s ease-in-out infinite;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.1) 0%, transparent 70%);
 }
 
 @keyframes characterFloat {
   0%, 100% {
-    transform: translateY(-50%) translateY(0);
+    transform: translateY(0);
   }
   50% {
-    transform: translateY(-50%) translateY(-8px);
+    transform: translateY(-12px);
   }
 }
 
 @keyframes characterWiggle {
   0%, 100% {
-    transform: translateY(-50%) rotate(0deg);
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  40% {
+    transform: rotate(8deg);
+  }
+  60% {
+    transform: rotate(-5deg);
+  }
+  80% {
+    transform: rotate(5deg);
+  }
+}
+
+@keyframes characterHeartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(1.05);
+  }
+  20%, 40% {
+    transform: scale(1);
+  }
+}
+
+@keyframes characterWave {
+  0%, 100% {
+    transform: rotate(0deg);
   }
   25% {
-    transform: translateY(-50%) rotate(-3deg);
+    transform: rotate(-15deg);
   }
   75% {
-    transform: translateY(-50%) rotate(3deg);
+    transform: rotate(15deg);
   }
 }
 
 @keyframes characterBlink {
-  0%, 90%, 100% {
+  0%, 85%, 100% {
     opacity: 1;
   }
-  92%, 98% {
-    opacity: 0.3;
+  87%, 93% {
+    opacity: 0.1;
+  }
+}
+
+@keyframes characterGlow {
+  0%, 100% {
+    filter: drop-shadow(0 4px 12px rgba(129, 140, 248, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 4px 20px rgba(129, 140, 248, 0.7));
+  }
+}
+
+/* 星星闪烁效果 */
+.sparkle {
+  position: absolute;
+  font-size: 12px;
+  pointer-events: none;
+  animation: sparkleFloat 3s ease-in-out infinite;
+}
+
+.sparkle-1 {
+  top: -10px;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.sparkle-2 {
+  top: 10px;
+  right: 15%;
+  animation-delay: 1s;
+}
+
+.sparkle-3 {
+  bottom: -5px;
+  left: 50%;
+  animation-delay: 2s;
+}
+
+@keyframes sparkleFloat {
+  0%, 100% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-15px) scale(1);
   }
 }
 
