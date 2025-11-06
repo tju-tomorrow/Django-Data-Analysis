@@ -226,6 +226,8 @@ const handleLogout = () => {
 .chat-container {
   display: flex;
   height: 100vh;
+  overflow: hidden; /* 防止整体页面被撑宽 */
+  max-width: 100vw; /* 限制最大宽度为视口宽度 */
 }
 
 .sidebar {
@@ -251,6 +253,8 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-color);
+  min-width: 0; /* 关键：允许flex子元素缩小 */
+  overflow: hidden; /* 防止内容溢出 */
 }
 
 .chat-header {
@@ -279,6 +283,8 @@ const handleLogout = () => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-width: 0; /* 关键：允许flex子元素缩小 */
+  max-width: 100%; /* 限制最大宽度为父容器的100% */
 }
 
 .empty-state {
