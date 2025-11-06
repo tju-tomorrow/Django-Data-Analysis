@@ -35,41 +35,60 @@
   --code-block-color: #24292e;
 }
 
-/* 深色主题 */
+/* 深色主题 - 专业配色方案 */
 :root[data-theme="dark"] {
-  --primary-color: #818cf8;
-  --primary-light: #a5b4fc;
-  --primary-dark: #6366f1;
-  --secondary-color: #34d399;
-  --bg-color: #0f172a;
-  --bg-secondary: #1e293b;
-  --card-bg: #1e293b;
-  --text-color: #f8fafc;
+  /* 主色调 - 使用专业的蓝色系 */
+  --primary-color: #3b82f6;
+  --primary-light: #60a5fa;
+  --primary-dark: #2563eb;
+  
+  /* 次要色 - 柔和的青色 */
+  --secondary-color: #06b6d4;
+  
+  /* 背景色 - 深灰蓝，更专业 */
+  --bg-color: #0a0e1a;
+  --bg-secondary: #151b2e;
+  --card-bg: #1a2332;
+  
+  /* 文字颜色 - 提高对比度 */
+  --text-color: #e2e8f0;
   --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --border-color: #475569;
-  --user-message: #4c1d95;
-  --bot-message: #1e293b;
-  --danger-color: #f87171;
-  --hover-color: #334155;
-  --input-bg: #1e293b;
-  --input-border: #475569;
-  --input-focus-border: #818cf8;
-  --input-text: #f8fafc;
-  --input-placeholder: #94a3b8;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --text-secondary: #94a3b8;
+  
+  /* 边框颜色 - 更柔和的灰色 */
+  --border-color: #2d3748;
+  
+  /* 消息气泡 - 更专业的配色 */
+  --user-message: #1e3a5f;
+  --bot-message: #1a2332;
+  
+  /* 危险色 - 柔和的红色 */
+  --danger-color: #ef4444;
+  
+  /* 悬停色 - 中性灰 */
+  --hover-color: #252d3d;
+  
+  /* 输入框颜色 */
+  --input-bg: #1a2332;
+  --input-border: #2d3748;
+  --input-focus-border: #3b82f6;
+  --input-text: #e2e8f0;
+  --input-placeholder: #64748b;
+  
+  /* 阴影 - 更柔和 */
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
   --radius: 8px;
   
   /* 输入框专用颜色 */
-  --input-box-bg: #1e293b;
-  --input-box-border: #475569;
-  --input-box-focus-border: #818cf8;
+  --input-box-bg: #1a2332;
+  --input-box-border: #2d3748;
+  --input-box-focus-border: #3b82f6;
   
-  /* 代码块颜色 - 深色主题优化 */
-  --code-bg: rgba(110, 118, 129, 0.4);
-  --code-color: #fbbf24;
-  --code-block-bg: #0d1117;
-  --code-block-color: #e2e8f0;
+  /* 代码块颜色 - 专业配色 */
+  --code-bg: rgba(59, 130, 246, 0.15);
+  --code-color: #60a5fa;
+  --code-block-bg: #0f1419;
+  --code-block-color: #cbd5e1;
 }
 
 * {

@@ -110,13 +110,15 @@ const formatTime = (date) => {
 }
 
 .user-avatar {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   color: white;
+  border: 2px solid rgba(59, 130, 246, 0.3);
 }
 
 .bot-avatar {
-  background-color: var(--secondary-color);
+  background: linear-gradient(135deg, var(--secondary-color) 0%, #0891b2 100%);
   color: white;
+  border: 2px solid rgba(6, 182, 212, 0.3);
 }
 
 .message-content {
