@@ -44,7 +44,7 @@ export default {
   },
   
   // 流式聊天消息
-  async chatStream(sessionId, userInput, queryType = "general_chat", onMessage, onError, onComplete) {
+  async chatStream(sessionId, userInput, queryType = "general_chat", signal, onMessage, onError, onComplete) {
     const token = localStorage.getItem('apiKey');
     const baseURL = window.location.origin;
     
@@ -60,6 +60,7 @@ export default {
           user_input: userInput,
           query_type: queryType,
         }),
+        signal: signal,  // 添加取消信号
       });
 
       if (!response.ok) {
@@ -70,38 +71,54 @@ export default {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // 保留最后一个不完整的行
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // 保留最后一个不完整的行
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.error) {
-                onError(parsed.error);
-                return;
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.error) {
+                  onError(parsed.error);
+                  return;
+                }
+                if (parsed.done) {
+                  onComplete(parsed.content);
+                  return;
+                }
+                if (parsed.delta) {
+                  onMessage(parsed.content);
+                }
+              } catch (e) {
+                console.error('解析 SSE 数据失败:', e);
               }
-              if (parsed.done) {
-                onComplete(parsed.content);
-                return;
-              }
-              if (parsed.delta) {
-                onMessage(parsed.content);
-              }
-            } catch (e) {
-              console.error('解析 SSE 数据失败:', e);
             }
           }
         }
+      } catch (readError) {
+        // 如果是 AbortError，说明用户主动停止
+        if (readError.name === 'AbortError') {
+          console.log('用户停止了生成');
+          reader.cancel();  // 取消读取
+          return;
+        }
+        throw readError;
+      } finally {
+        reader.releaseLock();
       }
     } catch (error) {
-      onError(error.message || '网络错误');
+      if (error.name === 'AbortError') {
+        onError('AbortError');  // 特殊标记，前端会忽略
+      } else {
+        onError(error.message || '网络错误');
+      }
     }
   },
   

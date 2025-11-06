@@ -27,12 +27,19 @@
         清除
       </button>
       <button
+        v-if="!loading"
         class="primary"
         @click="sendMessage"
-        :disabled="!message.trim() || loading"
+        :disabled="!message.trim()"
       >
-        <span v-if="loading" class="loading"></span>
-        <span v-else>发送</span>
+        发送
+      </button>
+      <button
+        v-else
+        class="danger"
+        @click="stopGeneration"
+      >
+        停止生成
       </button>
     </div>
   </div>
@@ -48,7 +55,7 @@ const props = defineProps({
   },
 });
 
-const emits = defineEmits(["send"]);
+const emits = defineEmits(["send", "stop"]);
 
 const message = ref("");
 const selectedQueryType = ref("analysis"); // 默认查询类型
@@ -59,6 +66,10 @@ const sendMessage = () => {
     emits("send", content, selectedQueryType.value);
     message.value = "";
   }
+};
+
+const stopGeneration = () => {
+  emits("stop");
 };
 
 const clearInput = () => {

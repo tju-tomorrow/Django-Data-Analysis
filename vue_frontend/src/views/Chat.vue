@@ -46,7 +46,7 @@
         </div>
       </div>
 
-      <ChatInput :loading="loading" @send="handleSendMessage" />
+      <ChatInput :loading="loading" @send="handleSendMessage" @stop="handleStopGeneration" />
     </div>
   </div>
 </template>
@@ -62,6 +62,9 @@ import ChatInput from "../components/ChatInput.vue";
 
 const store = useStore();
 const router = useRouter();
+
+// 用于取消流式请求的 AbortController
+let abortController = null;
 
 // 计算属性
 const sessions = computed(() => store.sessions);
@@ -116,6 +119,9 @@ const handleSendMessage = async (content, queryType) => {
   try {
     store.setLoading(true);
     
+    // 创建新的 AbortController
+    abortController = new AbortController();
+    
     // 1. 先添加用户消息到界面
     const userMessageId = Date.now();
     store.addMessage(currentSession.value, true, content, userMessageId);
@@ -132,24 +138,54 @@ const handleSendMessage = async (content, queryType) => {
       currentSession.value,
       content,
       queryType,
+      abortController.signal,  // 传递取消信号
       // onMessage: 收到增量内容时更新 AI 消息
       (fullContent) => {
         store.updateMessage(currentSession.value, botMessageId, fullContent);
       },
       // onError: 错误处理
       (error) => {
-        store.setError(error);
+        if (error !== 'AbortError') {  // 忽略取消错误
+          store.setError(error);
+        }
         store.setLoading(false);
+        abortController = null;
       },
       // onComplete: 完成
       (finalContent) => {
         store.updateMessage(currentSession.value, botMessageId, finalContent);
         store.setLoading(false);
+        abortController = null;
       }
     );
   } catch (err) {
-    store.setError(err.message || "发送消息失败");
+    if (err.name !== 'AbortError') {  // 忽略取消错误
+      store.setError(err.message || "发送消息失败");
+    }
     store.setLoading(false);
+    abortController = null;
+  }
+};
+
+// 处理停止生成
+const handleStopGeneration = () => {
+  if (abortController) {
+    abortController.abort();
+    
+    // 找到最后一条 AI 消息，添加停止提示
+    const sessionMessages = store.messages[currentSession.value];
+    if (sessionMessages && sessionMessages.length > 0) {
+      const lastMessage = sessionMessages[sessionMessages.length - 1];
+      if (!lastMessage.isUser) {
+        // 在 AI 回复后添加停止提示
+        const currentContent = lastMessage.content || '';
+        const updatedContent = currentContent + '\n\n---\n_用户停止生成_';
+        store.updateMessage(currentSession.value, lastMessage.id, updatedContent);
+      }
+    }
+    
+    store.setLoading(false);
+    abortController = null;
   }
 };
 
