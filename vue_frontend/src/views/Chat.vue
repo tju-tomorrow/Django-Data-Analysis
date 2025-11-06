@@ -37,6 +37,16 @@
         </button>
         
         <div class="header-center">
+          <div class="anime-character" @click="characterClick">
+            <img 
+              src="https://api.dicebear.com/7.x/adventurer/svg?seed=LogOracle&backgroundColor=b6e3ff,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50&accessoriesProbability=30&hair=shortHair&hairColor=0e0e0e,3c4a5b,6c757d&facialHairProbability=0" 
+              alt="二次元小人"
+              class="character-img"
+            />
+            <div class="character-bubble" v-if="showBubble">
+              <span>{{ bubbleText }}</span>
+            </div>
+          </div>
           <h1 class="header-title">
             <span class="title-main">LogOracle</span>
             <span class="subtitle-cn">日志神谕</span>
@@ -194,6 +204,24 @@ const showSettings = ref(false);
 // 侧边栏收起状态（默认收起）
 const sidebarCollapsed = ref(true);
 const showPricingModal = ref(false);
+const showBubble = ref(false);
+const bubbleText = ref('');
+
+// 二次元小人点击事件
+const characterClick = () => {
+  const texts = [
+    '你好呀！✨',
+    '需要帮助吗？😊',
+    '一起分析日志吧！💪',
+    'LogOracle 最棒了！🌟',
+    '加油加油！🎉'
+  ];
+  bubbleText.value = texts[Math.floor(Math.random() * texts.length)];
+  showBubble.value = true;
+  setTimeout(() => {
+    showBubble.value = false;
+  }, 2000);
+};
 
 // 切换侧边栏
 const toggleSidebar = () => {
@@ -525,6 +553,117 @@ const handleSignUp = () => {
   text-align: center;
   animation: fadeInUp 0.4s ease-out;
   will-change: transform, opacity;
+  position: relative;
+}
+
+.anime-character {
+  position: absolute;
+  left: -80px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  z-index: 5;
+  animation: characterFloat 3s ease-in-out infinite, characterWiggle 2s ease-in-out infinite;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  user-select: none;
+}
+
+.anime-character:hover {
+  transform: translateY(-50%) scale(1.15);
+  animation-play-state: paused;
+}
+
+.anime-character:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.character-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(129, 140, 248, 0.3));
+  animation: characterBlink 4s ease-in-out infinite;
+}
+
+@keyframes characterFloat {
+  0%, 100% {
+    transform: translateY(-50%) translateY(0);
+  }
+  50% {
+    transform: translateY(-50%) translateY(-10px);
+  }
+}
+
+@keyframes characterWiggle {
+  0%, 100% {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-50%) rotate(-5deg);
+  }
+  75% {
+    transform: translateY(-50%) rotate(5deg);
+  }
+}
+
+@keyframes characterBlink {
+  0%, 90%, 100% {
+    opacity: 1;
+  }
+  92%, 98% {
+    opacity: 0.3;
+  }
+}
+
+.character-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 10px;
+  padding: 0.5rem 0.75rem;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  animation: bubblePop 0.3s ease-out, bubbleFade 2s ease-out 0.3s forwards;
+  box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.character-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--primary-color);
+}
+
+@keyframes bubblePop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes bubbleFade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
 }
 
 @keyframes fadeInUp {
