@@ -42,6 +42,7 @@
               src="https://api.dicebear.com/7.x/adventurer/svg?seed=LogOracle&backgroundColor=b6e3ff,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50&accessoriesProbability=30&hair=shortHair&hairColor=0e0e0e,3c4a5b,6c757d&facialHairProbability=0" 
               alt="二次元小人"
               class="character-img"
+              @error="handleImageError"
             />
             <div class="character-bubble" v-if="showBubble">
               <span>{{ bubbleText }}</span>
@@ -221,6 +222,13 @@ const characterClick = () => {
   setTimeout(() => {
     showBubble.value = false;
   }, 2000);
+};
+
+// 图片加载失败处理
+const handleImageError = (event) => {
+  // 如果图片加载失败，使用备用方案
+  event.target.src = 'https://api.dicebear.com/7.x/bottts/svg?seed=LogOracle&backgroundColor=b6e3ff,c0aede';
+  console.log('图片加载失败，使用备用图片');
 };
 
 // 切换侧边栏
@@ -554,16 +562,17 @@ const handleSignUp = () => {
   animation: fadeInUp 0.4s ease-out;
   will-change: transform, opacity;
   position: relative;
+  padding-left: 80px; /* 为小人留出空间 */
 }
 
 .anime-character {
   position: absolute;
-  left: -80px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
   width: 60px;
   height: 60px;
-  z-index: 5;
+  z-index: 10;
   animation: characterFloat 3s ease-in-out infinite, characterWiggle 2s ease-in-out infinite;
   cursor: pointer;
   transition: transform 0.3s ease;
@@ -592,7 +601,7 @@ const handleSignUp = () => {
     transform: translateY(-50%) translateY(0);
   }
   50% {
-    transform: translateY(-50%) translateY(-10px);
+    transform: translateY(-50%) translateY(-8px);
   }
 }
 
@@ -601,10 +610,10 @@ const handleSignUp = () => {
     transform: translateY(-50%) rotate(0deg);
   }
   25% {
-    transform: translateY(-50%) rotate(-5deg);
+    transform: translateY(-50%) rotate(-3deg);
   }
   75% {
-    transform: translateY(-50%) rotate(5deg);
+    transform: translateY(-50%) rotate(3deg);
   }
 }
 
