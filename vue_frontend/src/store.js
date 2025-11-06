@@ -76,9 +76,19 @@ export const useStore = defineStore('main', {
     
     // 从历史记录加载消息
     loadHistory(sessionId, history) {
-      this.messages[sessionId] = [];
+      // 确保会话消息数组存在
+      if (!this.messages[sessionId]) {
+        this.messages[sessionId] = [];
+      }
       
-      if (!history) return;
+      // 如果有历史记录，先清空再加载
+      if (history) {
+        this.messages[sessionId] = [];
+      } else {
+        // 没有历史记录，确保是空数组
+        this.messages[sessionId] = [];
+        return;
+      }
       
       const lines = history.split('\n');
       let currentMessage = null;
@@ -121,7 +131,13 @@ export const useStore = defineStore('main', {
     
     // 清空会话消息
     clearSessionMessages(sessionId) {
-      this.messages[sessionId] = [];
+      // 使用 Vue 的响应式方式更新
+      if (this.messages[sessionId]) {
+        this.messages[sessionId] = [];
+      } else {
+        // 如果不存在，创建空数组
+        this.messages = { ...this.messages, [sessionId]: [] };
+      }
     },
     
     // 设置加载状态

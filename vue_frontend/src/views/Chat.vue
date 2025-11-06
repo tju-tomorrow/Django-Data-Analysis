@@ -138,9 +138,19 @@ const loadHistory = async (sessionId) => {
   try {
     store.setLoading(true);
     const response = await api.getHistory(sessionId);
-    store.loadHistory(sessionId, response.data.history);
+    // 确保响应数据存在
+    const history = response?.data?.history || '';
+    store.loadHistory(sessionId, history);
   } catch (err) {
-    store.setError(err.response?.data?.error || "加载历史记录失败");
+    // 如果是 404 或空历史记录，这是正常的（新会话）
+    if (err.response?.status === 404 || err.response?.status === 400) {
+      // 新会话没有历史记录，确保消息数组为空
+      if (!store.messages[sessionId]) {
+        store.messages[sessionId] = [];
+      }
+    } else {
+      store.setError(err.response?.data?.error || "加载历史记录失败");
+    }
   } finally {
     store.setLoading(false);
   }
@@ -149,8 +159,22 @@ const loadHistory = async (sessionId) => {
 
 // 处理选择会话
 const handleSelectSession = async (sessionId) => {
+  // 先设置当前会话，确保界面立即更新
   store.setCurrentSession(sessionId);
-  await loadHistory(sessionId);
+  // 如果该会话没有消息，先初始化为空数组
+  if (!store.messages[sessionId]) {
+    store.messages[sessionId] = [];
+  }
+  // 然后加载历史记录
+  try {
+    await loadHistory(sessionId);
+  } catch (err) {
+    // 如果加载失败，确保消息数组存在
+    if (!store.messages[sessionId]) {
+      store.messages[sessionId] = [];
+    }
+    console.error('加载历史记录失败:', err);
+  }
 };
 
 // 处理删除会话
@@ -165,9 +189,21 @@ const handleDeleteSession = async (sessionId) => {
 };
 
 // 处理创建会话
-const handleCreateSession = (sessionId) => {
+const handleCreateSession = async (sessionId) => {
   store.addSession(sessionId);
-  store.clearSessionMessages(sessionId);
+  // 确保新会话的消息数组被初始化
+  if (!store.messages[sessionId]) {
+    store.messages[sessionId] = [];
+  } else {
+    store.clearSessionMessages(sessionId);
+  }
+  // 尝试加载历史记录（新会话可能没有历史）
+  try {
+    await loadHistory(sessionId);
+  } catch (err) {
+    // 新会话没有历史记录是正常的，忽略错误
+    console.log('新会话，无历史记录');
+  }
 };
 
 // 处理发送消息
