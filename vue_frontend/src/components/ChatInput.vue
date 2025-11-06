@@ -37,15 +37,16 @@
         </label>
         <input type="file" id="file" name="file" @change="handleFileUpload" />
       </div>
-      <input
+      <textarea
         required=""
         v-model="message"
         placeholder="输入消息..."
-        type="text"
         id="messageInput"
         @keyup.enter.exact="sendMessage"
+        @keyup.enter.shift="addNewline"
         :disabled="loading"
-      />
+        rows="1"
+      ></textarea>
       <button
         v-if="!loading"
         id="sendButton"
@@ -147,7 +148,7 @@ const handleFileUpload = (event) => {
 .query-type-select {
   width: fit-content;
   min-width: 120px;
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 1rem;
   padding-right: 2.5rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
@@ -157,8 +158,9 @@ const handleFileUpload = (event) => {
   background-position: right 0.75rem center;
   color: var(--text-color);
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   appearance: none;
   -webkit-appearance: none;
@@ -206,13 +208,14 @@ const handleFileUpload = (event) => {
 
 .messageBox {
   width: 100%;
-  height: 40px;
+  height: 100px;
+  min-height: 100px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   background-color: var(--input-box-bg, var(--card-bg));
-  padding: 0 15px;
-  border-radius: 10px;
+  padding: 0 20px;
+  border-radius: 12px;
   border: 1px solid var(--input-box-border, var(--border-color));
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -228,7 +231,7 @@ const handleFileUpload = (event) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
 }
 
 #file {
@@ -246,7 +249,8 @@ const handleFileUpload = (event) => {
 }
 
 .fileUploadWrapper label svg {
-  height: 18px;
+  height: 22px;
+  width: 22px;
 }
 
 .fileUploadWrapper label svg path {
@@ -291,13 +295,37 @@ const handleFileUpload = (event) => {
 #messageInput {
   flex: 1;
   height: 100%;
+  min-height: 100%;
+  max-height: 100%;
   background-color: transparent;
   outline: none;
   border: none;
-  padding-left: 10px;
+  padding: 12px 15px;
   color: var(--input-text, var(--text-primary));
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: none;
+  overflow-y: auto;
+  vertical-align: top;
+}
+
+/* 确保 textarea 内容从顶部开始 */
+#messageInput::-webkit-scrollbar {
+  width: 6px;
+}
+
+#messageInput::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#messageInput::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+#messageInput::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 #messageInput::placeholder {
@@ -318,6 +346,7 @@ const handleFileUpload = (event) => {
 #sendButton {
   width: fit-content;
   height: 100%;
+  min-width: 44px;
   background-color: transparent;
   outline: none;
   border: none;
@@ -327,7 +356,8 @@ const handleFileUpload = (event) => {
   cursor: pointer;
   transition: all 0.3s;
   padding: 0;
-  margin-left: 5px;
+  margin-left: 10px;
+  flex-shrink: 0;
 }
 
 #sendButton:disabled {
@@ -341,7 +371,8 @@ const handleFileUpload = (event) => {
 }
 
 #sendButton svg {
-  height: 18px;
+  height: 22px;
+  width: 22px;
   transition: all 0.3s;
 }
 

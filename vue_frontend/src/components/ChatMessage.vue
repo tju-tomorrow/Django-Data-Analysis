@@ -184,6 +184,7 @@ const formatTime = (date) => {
   border-radius: 3px;
   font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9em;
+  font-weight: 500;
 }
 
 .markdown-body :deep(pre) {

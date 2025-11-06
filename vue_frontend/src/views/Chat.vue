@@ -45,9 +45,36 @@
           <h2 class="header-session">当前会话: {{ currentSession }}</h2>
         </div>
         
-        <button class="settings-btn" @click="showSettings = true" title="设置">
-          ⚙️
-        </button>
+        <div class="header-actions">
+          <button class="plus-btn" @click="showPricingModal = true" title="获取 Plus">
+            <span class="plus-icon">✨</span>
+            <span class="plus-text">Plus</span>
+          </button>
+          <button class="settings-btn" @click="showSettings = true" title="设置">
+            ⚙️
+          </button>
+        </div>
+      </div>
+
+      <!-- 定价卡片模态框 -->
+      <div v-if="showPricingModal" class="pricing-modal-overlay" @click="showPricingModal = false">
+        <div class="pricing-card" @click.stop>
+          <div class="pricing-badge">
+            <span class="badge-text">MOST POPULAR</span>
+            <span class="badge-icon">⭐</span>
+          </div>
+          <div class="pricing-content">
+            <h3 class="plan-name">Profesional</h3>
+            <div class="price-section">
+              <span class="price">$98,00</span>
+              <span class="price-period">/ month</span>
+            </div>
+            <p class="plan-description">Best for growing startups and growth companies</p>
+            <button class="signup-btn" @click="handleSignUp">
+              Sign Up with Pro
+            </button>
+          </div>
+        </div>
       </div>
 
       <div v-if="error" class="error-message">{{ error }}</div>
@@ -160,6 +187,7 @@ const showSettings = ref(false);
 
 // 侧边栏收起状态（默认收起）
 const sidebarCollapsed = ref(true);
+const showPricingModal = ref(false);
 
 // 切换侧边栏
 const toggleSidebar = () => {
@@ -355,6 +383,13 @@ const handleLogout = () => {
     store.clearApiKey();
     router.push("/login");
   }
+};
+
+// 处理注册 Plus
+const handleSignUp = () => {
+  // TODO: 实现注册逻辑
+  alert('正在跳转到注册页面...');
+  showPricingModal.value = false;
 };
 </script>
 
@@ -690,12 +725,195 @@ const handleLogout = () => {
   font-style: italic;
 }
 
+/* 定价卡片模态框样式 */
+.pricing-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pricing-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pricing-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 0.5rem 1.25rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  font-style: italic;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  z-index: 10;
+}
+
+.badge-icon {
+  font-size: 0.875rem;
+}
+
+.pricing-content {
+  background: #1e293b;
+  border-radius: 16px;
+  padding: 2rem;
+  color: white;
+}
+
+.plan-name {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  color: white;
+  font-family: 'Inter', sans-serif;
+}
+
+.price-section {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.price {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  font-family: 'Inter', sans-serif;
+}
+
+.price-period {
+  font-size: 1rem;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.plan-description {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+  font-family: 'Inter', sans-serif;
+}
+
+.signup-btn {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.signup-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.signup-btn:active {
+  transform: translateY(0);
+}
+
 .loading-indicator {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin: 1rem auto;
   color: var(--text-secondary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: absolute;
+  right: 1rem;
+  z-index: 10;
+}
+
+.plus-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  will-change: transform;
+}
+
+.plus-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.plus-btn:active {
+  transform: translateY(0);
+}
+
+.plus-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.plus-text {
+  font-family: 'Inter', sans-serif;
 }
 
 .settings-btn {
@@ -712,9 +930,7 @@ const handleLogout = () => {
   width: 40px;
   height: 40px;
   color: var(--text-primary);
-  position: absolute;
-  right: 1rem;
-  z-index: 10;
+  flex-shrink: 0;
   will-change: transform;
 }
 
