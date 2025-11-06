@@ -21,8 +21,13 @@
 
     <div class="chat-area">
       <div class="chat-header">
-        <h1>DeepSeek-KAI.v.0.0.1 聊天</h1>
-        <h2>当前会话: {{ currentSession }}</h2>
+        <div class="header-left">
+          <h1>DeepSeek-KAI.v.0.0.1 聊天</h1>
+          <h2>当前会话: {{ currentSession }}</h2>
+        </div>
+        <button class="settings-btn" @click="showSettings = true" title="设置">
+          ⚙️
+        </button>
       </div>
 
       <div v-if="error" class="error-message">{{ error }}</div>
@@ -48,23 +53,30 @@
 
       <ChatInput :loading="loading" @send="handleSendMessage" @stop="handleStopGeneration" />
     </div>
+
+    <!-- 设置弹窗 -->
+    <Settings v-if="showSettings" @close="showSettings = false" />
   </div>
 </template>
 
 <script setup>
-import { onMounted, computed } from "vue";
+import { onMounted, computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useStore } from "../store";
 import api from "../api";
 import SessionList from "../components/SessionList.vue";
 import ChatMessage from "../components/ChatMessage.vue";
 import ChatInput from "../components/ChatInput.vue";
+import Settings from "../components/Settings.vue";
 
 const store = useStore();
 const router = useRouter();
 
 // 用于取消流式请求的 AbortController
 let abortController = null;
+
+// 设置弹窗显示状态
+const showSettings = ref(false);
 
 // 计算属性
 const sessions = computed(() => store.sessions);
@@ -245,14 +257,17 @@ const handleLogout = () => {
   padding: 1rem;
   background-color: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.chat-header h1 {
+.header-left h1 {
   color: var(--primary-color);
   margin-bottom: 0.25rem;
 }
 
-.chat-header h2 {
+.header-left h2 {
   font-size: 1rem;
   color: var(--text-secondary);
   font-weight: 500;
@@ -280,5 +295,24 @@ const handleLogout = () => {
   gap: 0.5rem;
   margin: 1rem auto;
   color: var(--text-secondary);
+}
+
+.settings-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.settings-btn:hover {
+  background-color: var(--hover-color);
 }
 </style>
