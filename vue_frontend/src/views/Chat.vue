@@ -127,7 +127,7 @@ const handleCreateSession = (sessionId) => {
 };
 
 // 处理发送消息
-const handleSendMessage = async (content, queryType) => {
+const handleSendMessage = async (content, queryType, webSearch = false) => {
   try {
     store.setLoading(true);
     
@@ -150,6 +150,7 @@ const handleSendMessage = async (content, queryType) => {
       currentSession.value,
       content,
       queryType,
+      webSearch,  // 传递联网搜索标志
       abortController.signal,  // 传递取消信号
       // onMessage: 收到增量内容时更新 AI 消息
       (fullContent) => {

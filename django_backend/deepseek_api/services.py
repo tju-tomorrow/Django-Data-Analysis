@@ -55,7 +55,7 @@ def get_log_system():
     
     return _log_system_instance
 
-def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
+def deepseek_r1_api_call(prompt: str, query_type: str = "analysis", web_search: bool = False) -> str:
     """
     调用 DeepSeek API
     
@@ -116,7 +116,9 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
             messages = [ChatMessage(role="user", content=enhanced_prompt)]
             
             print(f"🤖 [API请求] 发送工具增强的请求到大模型...")
-            response = llm.chat(messages)
+            if web_search:
+                print(f"🌐 [联网搜索] 已启用联网搜索功能")
+            response = llm.chat(messages, web_search=web_search)
             
             result_text = response.message.content
             print(f"🤖 [API响应] 收到回复，长度: {len(result_text)} 字符")
@@ -142,12 +144,14 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
         else:
             # 日常聊天模式：直接调用 API，不使用 RAG
             print(f"🤖 [纯对话模式] 日常聊天，直接调用 DeepSeek API，不使用 RAG 检索")
+            if web_search:
+                print(f"🌐 [联网搜索] 已启用联网搜索功能")
             
             llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=60)
             messages = [ChatMessage(role="user", content=prompt)]
             
             print(f"🤖 [API请求] 发送请求到大模型...")
-            response = llm.chat(messages)
+            response = llm.chat(messages, web_search=web_search)
             
             result_text = response.message.content
             print(f"🤖 [API响应] 收到回复，长度: {len(result_text)} 字符")
@@ -169,7 +173,7 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
         
         return response
 
-def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", history_context: str = ""):
+def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", history_context: str = "", web_search: bool = False):
     """
     流式调用 DeepSeek API（支持 RAG 和历史上下文）
     
@@ -251,8 +255,10 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", histo
         
         # 流式调用 LLM
         llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
+        if web_search:
+            print(f"🌐 [联网搜索] 已启用联网搜索功能")
         print(f"🤖 [流式生成] 开始基于工具结果流式生成回复...")
-        return llm.stream_chat(messages)
+        return llm.stream_chat(messages, web_search=web_search)
     
     # 根据 query_type 决定是否使用 RAG
     if query_type == "analysis":
@@ -275,6 +281,8 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", histo
     else:
         # 日常聊天模式：直接添加用户输入
         print(f"🤖 [纯对话模式] 日常聊天，直接流式调用...")
+        if web_search:
+            print(f"🌐 [联网搜索] 已启用联网搜索功能")
         messages.append(ChatMessage(role="user", content=prompt))
         
         print(f"🤖 [消息列表] 总消息数: {len(messages)} (包含历史)")
@@ -282,7 +290,7 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", histo
     # 流式调用 LLM
     llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
     print(f"🤖 [流式生成] 开始流式生成回复...")
-    return llm.stream_chat(messages)
+    return llm.stream_chat(messages, web_search=web_search)
 
 def create_api_key(user: str) -> str:
     """创建 API Key 并保存到数据库"""

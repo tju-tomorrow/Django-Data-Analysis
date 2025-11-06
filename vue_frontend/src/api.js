@@ -44,7 +44,7 @@ export default {
   },
   
   // 流式聊天消息
-  async chatStream(sessionId, userInput, queryType = "general_chat", signal, onMessage, onError, onComplete) {
+  async chatStream(sessionId, userInput, queryType = "general_chat", webSearch = false, signal, onMessage, onError, onComplete) {
     const token = localStorage.getItem('apiKey');
     const baseURL = window.location.origin;
     
@@ -59,6 +59,7 @@ export default {
           session_id: sessionId,
           user_input: userInput,
           query_type: queryType,
+          web_search: webSearch,
         }),
         signal: signal,  // 添加取消信号
       });

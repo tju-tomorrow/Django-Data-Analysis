@@ -107,6 +107,10 @@ class DeepSeekLLM(LLM):
             "stream": False,
         }
         
+        # 如果启用联网搜索，添加web_search参数
+        if kwargs.get("web_search", False):
+            payload["web_search"] = True
+        
         try:
             logger.info(f"🚀 调用 DeepSeek API - 模型: {self._model}")
             response = requests.post(
@@ -182,6 +186,10 @@ class DeepSeekLLM(LLM):
             "max_tokens": kwargs.get("max_tokens", self._max_tokens),
             "stream": True,  # 开启流式
         }
+        
+        # 如果启用联网搜索，添加web_search参数
+        if kwargs.get("web_search", False):
+            payload["web_search"] = True
         
         try:
             logger.info(f"🚀 调用 DeepSeek API (流式) - 模型: {self._model}")

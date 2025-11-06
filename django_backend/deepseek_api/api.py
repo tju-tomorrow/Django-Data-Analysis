@@ -93,8 +93,9 @@ def chat(request, data: ChatIn):
     session_id = data.session_id.strip() or "default_session"
     user_input = data.user_input.strip()
     query_type = data.query_type or "analysis"  # 获取查询类型，默认为 analysis
+    web_search = data.web_search or False  # 获取联网搜索标志
     
-    print(f"📝 [请求参数] session_id: '{session_id}', query_type: '{query_type}'")
+    print(f"📝 [请求参数] session_id: '{session_id}', query_type: '{query_type}', web_search: {web_search}")
     print(f"📝 [用户输入] {user_input}")
     
     if not user_input:
@@ -232,12 +233,12 @@ def chat(request, data: ChatIn):
             # 日志分析模式：使用 RAG
             print(f"🔍 [RAG模式] 日志分析，使用 RAG 检索")
             print(f"🔍 [RAG查询] 原始查询: '{user_input}'")
-            reply = deepseek_r1_api_call(user_input, query_type)
+            reply = deepseek_r1_api_call(user_input, query_type, web_search=web_search)
         else:
             # 日常聊天模式：直接调用 LLM，不使用 RAG
             print(f"💬 [对话模式] 日常聊天，不使用 RAG 检索")
             print(f"💬 [对话查询] 查询: '{user_input}'")
-            reply = deepseek_r1_api_call(user_input, query_type)
+            reply = deepseek_r1_api_call(user_input, query_type, web_search=web_search)
         
         print(f"🤖 [大模型回复] 长度: {len(reply)} 字符")
         print(f"🤖 [回复内容] {reply[:100]}{'...' if len(reply) > 100 else ''}")
@@ -312,8 +313,9 @@ def chat_stream(request, data: ChatIn):
     session_id = data.session_id.strip() or "default_session"
     user_input = data.user_input.strip()
     query_type = data.query_type or "general_chat"
+    web_search = data.web_search or False  # 获取联网搜索标志
     
-    print(f"📝 [流式请求] session_id: '{session_id}', query_type: '{query_type}'")
+    print(f"📝 [流式请求] session_id: '{session_id}', query_type: '{query_type}', web_search: {web_search}")
     print(f"📝 [用户输入] {user_input}")
     
     if not user_input:
@@ -343,11 +345,12 @@ def chat_stream(request, data: ChatIn):
             print(f"🤖 [流式调用] 开始流式生成，query_type: {query_type}")
             print(f"🤖 [会话历史] 历史长度: {len(session.context)} 字符")
             
-            # 调用流式函数，传递历史上下文
+            # 调用流式函数，传递历史上下文和联网搜索标志
             stream_response = deepseek_r1_api_call_stream(
                 user_input, 
                 query_type, 
-                history_context=session.context  # 传递历史上下文
+                history_context=session.context,  # 传递历史上下文
+                web_search=web_search  # 传递联网搜索标志
             )
             
             full_reply = ""
