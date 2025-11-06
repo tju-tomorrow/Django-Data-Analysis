@@ -5,6 +5,16 @@
 
 # ==================== 推荐的模型配置 ====================
 
+# 配置 0：DeepSeek API（推荐 - 无需本地部署）
+DEEPSEEK_CONFIG = {
+    "llm": "deepseek-chat",                 # DeepSeek Chat 模型（API）
+    "embedding_model": "nomic-embed-text",  # 轻量级 embedding 模型（本地）
+    "llm_timeout": 60.0,                    # API 超时 60 秒
+    "embedding_timeout": 180.0,             # 3 分钟
+    "context_window": 32768,                # DeepSeek 上下文窗口
+    "use_api": True,                        # 标记使用 API
+}
+
 # 配置 1：快速轻量（推荐用于开发和测试）
 FAST_CONFIG = {
     "llm": "qwen2.5:3b",                    # Qwen 3B 模型，速度快，内存占用小
@@ -12,6 +22,7 @@ FAST_CONFIG = {
     "llm_timeout": 300.0,                   # 5 分钟
     "embedding_timeout": 180.0,             # 3 分钟
     "context_window": 4096,
+    "use_api": False,                       # 使用本地 Ollama
 }
 
 # 配置 2：平衡性能（推荐用于生产环境）
@@ -21,6 +32,7 @@ BALANCED_CONFIG = {
     "llm_timeout": 600.0,                   # 10 分钟
     "embedding_timeout": 300.0,             # 5 分钟
     "context_window": 8192,
+    "use_api": False,                       # 使用本地 Ollama
 }
 
 # 配置 3：高质量分析（需要大内存）
@@ -30,6 +42,7 @@ HIGH_QUALITY_CONFIG = {
     "llm_timeout": 900.0,                   # 15 分钟
     "embedding_timeout": 600.0,             # 10 分钟
     "context_window": 4096,
+    "use_api": False,                       # 使用本地 Ollama
 }
 
 # 配置 4：超快速（用于快速测试）
@@ -39,11 +52,16 @@ ULTRA_FAST_CONFIG = {
     "llm_timeout": 180.0,                   # 3 分钟
     "embedding_timeout": 120.0,             # 2 分钟
     "context_window": 2048,
+    "use_api": False,                       # 使用本地 Ollama
 }
 
 # ==================== 当前使用的配置 ====================
 # 修改这里来切换不同的配置
-CURRENT_CONFIG = FAST_CONFIG
+# 默认使用 DeepSeek API（推荐）
+CURRENT_CONFIG = DEEPSEEK_CONFIG
+
+# 如果要切换回本地 Ollama，取消注释下面这行：
+# CURRENT_CONFIG = FAST_CONFIG
 
 # ==================== 可用的 Ollama 模型列表 ====================
 """

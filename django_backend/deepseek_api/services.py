@@ -38,10 +38,18 @@ def get_log_system():
                 logger.info("初始化 TopKLogSystem 单例实例...")
                 logger.info(f"使用模型: LLM={CURRENT_CONFIG['llm']}, Embedding={CURRENT_CONFIG['embedding_model']}")
                 
+                # 检查是否使用 API
+                use_api = CURRENT_CONFIG.get('use_api', False)
+                if use_api:
+                    logger.info("🌐 配置为使用 DeepSeek API")
+                else:
+                    logger.info("🖥️  配置为使用本地 Ollama")
+                
                 _log_system_instance = TopKLogSystem(
                     log_path="./data/log",
                     llm=CURRENT_CONFIG['llm'],
-                    embedding_model=CURRENT_CONFIG['embedding_model']
+                    embedding_model=CURRENT_CONFIG['embedding_model'],
+                    use_api=use_api  # 传递 API 使用标志
                 )
                 logger.info("TopKLogSystem 初始化完成！")
     
