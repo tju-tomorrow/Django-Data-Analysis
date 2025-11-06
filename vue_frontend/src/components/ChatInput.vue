@@ -4,6 +4,7 @@
       v-model="selectedQueryType"
       class="query-type-select"
       :disabled="loading"
+      @change="handleQueryTypeChange"
     >
       <option value="analysis">日志分析</option>
       <option value="general_chat">日常聊天</option>
@@ -88,6 +89,21 @@
         </svg>
       </button>
     </div>
+
+    <!-- 信息提示模态框 -->
+    <div v-if="showInfoModal" class="info-modal-overlay" @click="showInfoModal = false">
+      <div class="info-modal" @click.stop>
+        <button class="info-close-btn" @click="showInfoModal = false" title="关闭">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <h3 class="info-modal-title">{{ infoModalContent.title }}</h3>
+        <p class="info-modal-message">{{ infoModalContent.message }}</p>
+        <button class="info-modal-btn" @click="showInfoModal = false">知道了</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -105,6 +121,25 @@ const emits = defineEmits(["send", "stop"]);
 
 const message = ref("");
 const selectedQueryType = ref("analysis"); // 默认查询类型
+const showInfoModal = ref(false);
+const infoModalContent = ref({ title: "", message: "" });
+
+// 监听选择框变化
+const handleQueryTypeChange = () => {
+  if (selectedQueryType.value === "analysis") {
+    showInfoModal.value = true;
+    infoModalContent.value = {
+      title: "日志分析模式",
+      message: "基于 RAG（检索增强生成）技术，LogOracle 能够智能检索和分析您的日志数据。系统会先检索相关的日志内容，然后结合上下文生成精准的分析结果，帮助您快速定位问题、洞察系统运行状态。"
+    };
+  } else if (selectedQueryType.value === "general_chat") {
+    showInfoModal.value = true;
+    infoModalContent.value = {
+      title: "日常聊天模式",
+      message: "让我们来聊聊天！在这个模式下，您可以与 LogOracle 进行轻松愉快的对话。"
+    };
+  }
+};
 
 const sendMessage = () => {
   const content = message.value.trim();
@@ -408,5 +443,117 @@ const handleFileUpload = (event) => {
 :root[data-theme="light"] .messageBox:focus-within {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* 信息提示模态框样式 */
+.info-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.info-modal {
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--border-color);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.info-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+}
+
+.info-close-btn:hover {
+  background-color: var(--hover-color);
+  color: var(--text-primary);
+  transform: rotate(90deg);
+}
+
+.info-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.info-modal-message {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 1.5rem 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.info-modal-btn {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: var(--primary-color);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.info-modal-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(129, 140, 248, 0.3);
+}
+
+.info-modal-btn:active {
+  transform: translateY(0);
 }
 </style>

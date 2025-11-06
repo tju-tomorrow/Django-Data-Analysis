@@ -59,6 +59,12 @@
       <!-- 定价卡片模态框 -->
       <div v-if="showPricingModal" class="pricing-modal-overlay" @click="showPricingModal = false">
         <div class="pricing-card" @click.stop>
+          <button class="close-btn" @click="showPricingModal = false" title="关闭">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           <div class="pricing-badge">
             <span class="badge-text">MOST POPULAR</span>
             <span class="badge-icon">⭐</span>
@@ -71,7 +77,7 @@
             </div>
             <p class="plan-description">Best for growing startups and growth companies</p>
             <button class="signup-btn" @click="handleSignUp">
-              Sign Up with Pro
+              Become a Pro
             </button>
           </div>
         </div>
@@ -759,6 +765,31 @@ const handleSignUp = () => {
   border-radius: 20px;
   animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
 }
 
 @keyframes slideUp {
