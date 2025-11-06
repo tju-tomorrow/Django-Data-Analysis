@@ -63,19 +63,29 @@ class TopKLogSystem:
         default_top_k: int = 10,  # 默认返回结果数量
         rerank_candidate_multiplier: int = 3,  # 重排序候选数量倍数（检索数量 = top_k * multiplier）
         max_rerank_candidates: int = 50,  # 重排序候选数量上限
+        use_api: bool = False,  # 是否使用 API（DeepSeek）
     ) -> None:
-        # init models - 使用 llama-index 原生组件
-        self.llm = Ollama(
-            model=llm, 
-            temperature=0.1, 
-            request_timeout=600.0,  # 增加超时时间到 10 分钟
-            context_window=4096,     # 增加上下文窗口
-            num_ctx=4096
-        )
-        self.embedding_model = OllamaEmbedding(
-            model_name=embedding_model,
-            request_timeout=300.0    # embedding 超时时间 5 分钟
-        )
+        # init models - 根据配置选择使用 API 或本地模型
+        if use_api:
+            # 使用 DeepSeek API
+            from deepseek_llm import DeepSeekLLM, create_deepseek_embedding
+            logger.info(f"🌐 使用 DeepSeek API - 模型: {llm}")
+            self.llm = DeepSeekLLM(model=llm, timeout=60)
+            self.embedding_model = create_deepseek_embedding(model_name=embedding_model)
+        else:
+            # 使用本地 Ollama
+            logger.info(f"🖥️  使用本地 Ollama - LLM: {llm}, Embedding: {embedding_model}")
+            self.llm = Ollama(
+                model=llm, 
+                temperature=0.1, 
+                request_timeout=600.0,  # 增加超时时间到 10 分钟
+                context_window=4096,     # 增加上下文窗口
+                num_ctx=4096
+            )
+            self.embedding_model = OllamaEmbedding(
+                model_name=embedding_model,
+                request_timeout=300.0    # embedding 超时时间 5 分钟
+            )
 
         # init database
         Settings.llm = self.llm

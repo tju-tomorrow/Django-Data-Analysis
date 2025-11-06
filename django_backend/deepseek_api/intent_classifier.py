@@ -39,22 +39,36 @@ class IntentResult:
     model_used: str
 
 class LightweightIntentClassifier:
-    """轻量级意图分类器 - 基于Ollama小模型"""
+    """轻量级意图分类器 - 支持 Ollama 和 DeepSeek API"""
     
-    def __init__(self, model_name: str = "qwen2.5:0.5b", ollama_url: str = "http://localhost:11434", cache_size: int = 1000):
+    def __init__(self, model_name: str = "qwen2.5:0.5b", ollama_url: str = "http://localhost:11434", cache_size: int = 1000, use_api: bool = False):
         """
         初始化意图分类器
         
         Args:
-            model_name: Ollama模型名称 (默认: qwen2.5:0.5b - 超轻量级，延迟极低)
+            model_name: 模型名称 (Ollama: qwen2.5:0.5b, DeepSeek API: deepseek-chat)
             ollama_url: Ollama服务地址
             cache_size: 缓存大小
+            use_api: 是否使用 DeepSeek API（默认使用 Ollama）
         """
         self.model_name = model_name
         self.ollama_url = ollama_url
         self.cache_size = cache_size
+        self.use_api = use_api
         self._lock = threading.Lock()
         self._initialized = False
+        
+        # 如果使用 API，获取 API Key
+        if self.use_api:
+            from deepseek_config import get_api_key, DEEPSEEK_BASE_URL
+            self.api_key = get_api_key()
+            self.api_base_url = DEEPSEEK_BASE_URL
+            if not self.api_key:
+                logger.warning("⚠️  未找到 DeepSeek API Key，将回退到关键词匹配")
+            else:
+                logger.info(f"✅ 意图分类器使用 DeepSeek API - 模型: {model_name}")
+        else:
+            logger.info(f"🖥️  意图分类器使用本地 Ollama - 模型: {model_name}")
         
         # 意图模板和关键词（作为fallback）
         self.intent_patterns = {
@@ -125,7 +139,7 @@ class LightweightIntentClassifier:
         return self._classify_with_model(text)
     
     def _classify_with_model(self, text: str) -> Tuple[IntentType, float]:
-        """使用Ollama模型进行分类"""
+        """使用模型进行分类（支持 Ollama 和 DeepSeek API）"""
         try:
             # 构建意图分类的prompt
             prompt = f"""请分析以下用户输入的意图，从这些类型中选择一个：
@@ -157,37 +171,66 @@ class LightweightIntentClassifier:
 请只回答意图类型和置信度（0-1），格式：意图类型,置信度
 例如：greeting,0.95"""
 
-            # 调用Ollama API
-            payload = {
-                "model": self.model_name,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.1,  # 低温度确保一致性
-                    "num_predict": 20,   # 限制输出长度
-                    "stop": ["\n", "。", ".", "，", ","]
+            if self.use_api and self.api_key:
+                # 使用 DeepSeek API
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
                 }
-            }
-            
-            response = requests.post(
-                f"{self.ollama_url}/api/generate",
-                json=payload,
-                timeout=5  # 5秒超时
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                output = result.get('response', '').strip()
                 
-                # 解析输出
-                intent, confidence = self._parse_ollama_output(output)
-                return intent, confidence
+                payload = {
+                    "model": self.model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 50,
+                    "stream": False,
+                }
+                
+                response = requests.post(
+                    f"{self.api_base_url}/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=5
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    output = result["choices"][0]["message"]["content"].strip()
+                    intent, confidence = self._parse_ollama_output(output)
+                    return intent, confidence
+                else:
+                    logger.warning(f"DeepSeek API调用失败: {response.status_code}")
+                    return self._classify_with_keywords(text)
             else:
-                logger.warning(f"Ollama API调用失败: {response.status_code}")
-                return self._classify_with_keywords(text)
+                # 使用 Ollama
+                payload = {
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.1,
+                        "num_predict": 20,
+                        "stop": ["\n", "。", ".", "，", ","]
+                    }
+                }
+                
+                response = requests.post(
+                    f"{self.ollama_url}/api/generate",
+                    json=payload,
+                    timeout=5
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    output = result.get('response', '').strip()
+                    intent, confidence = self._parse_ollama_output(output)
+                    return intent, confidence
+                else:
+                    logger.warning(f"Ollama API调用失败: {response.status_code}")
+                    return self._classify_with_keywords(text)
                 
         except requests.RequestException as e:
-            logger.warning(f"Ollama请求失败，使用关键词匹配: {e}")
+            logger.warning(f"API请求失败，使用关键词匹配: {e}")
             return self._classify_with_keywords(text)
         except Exception as e:
             logger.warning(f"模型推理失败，使用关键词匹配: {e}")
@@ -365,7 +408,31 @@ def get_intent_classifier() -> LightweightIntentClassifier:
     if _intent_classifier is None:
         with _classifier_lock:
             if _intent_classifier is None:
-                _intent_classifier = LightweightIntentClassifier()
+                # 从配置文件读取是否使用 API
+                try:
+                    import sys
+                    import os
+                    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                    from model_config import CURRENT_CONFIG
+                    use_api = CURRENT_CONFIG.get('use_api', False)
+                    model_name = CURRENT_CONFIG.get('llm', 'qwen2.5:0.5b')
+                    
+                    if use_api:
+                        logger.info(f"🌐 意图分类器配置为使用 API - 模型: {model_name}")
+                        _intent_classifier = LightweightIntentClassifier(
+                            model_name=model_name,
+                            use_api=True
+                        )
+                    else:
+                        # 使用轻量级本地模型进行意图分类
+                        logger.info("🖥️  意图分类器配置为使用本地 Ollama")
+                        _intent_classifier = LightweightIntentClassifier(
+                            model_name="qwen2.5:0.5b",  # 使用超轻量模型
+                            use_api=False
+                        )
+                except Exception as e:
+                    logger.warning(f"读取配置失败，使用默认本地模型: {e}")
+                    _intent_classifier = LightweightIntentClassifier()
     
     return _intent_classifier
 
