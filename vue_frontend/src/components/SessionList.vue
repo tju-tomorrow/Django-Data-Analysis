@@ -14,8 +14,15 @@
         class="session-item"
         :class="{ active: session === currentSession }"
         @click="selectSession(session)"
+        @contextmenu.prevent="showContextMenu($event, session)"
       >
-        <div class="session-name">{{ session }}</div>
+        <div class="session-content">
+          <div class="session-name">{{ session }}</div>
+          <div class="session-meta" v-if="getLastMessage(session)">
+            <span class="session-preview">{{ getLastMessage(session).preview }}</span>
+            <span class="session-time">{{ getLastMessage(session).time }}</span>
+          </div>
+        </div>
         <button 
           class="delete-btn" 
           @click.stop="deleteSession(session)"
@@ -24,6 +31,19 @@
           <trash-icon class="icon" />
         </button>
       </div>
+    </div>
+    
+    <!-- 右键菜单 -->
+    <div v-if="contextMenu.show" 
+         class="context-menu" 
+         :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+         @click.stop>
+      <button class="context-menu-item" @click="renameSession(contextMenu.session)">
+        <span>重命名</span>
+      </button>
+      <button class="context-menu-item" @click="deleteSession(contextMenu.session)">
+        <span>删除</span>
+      </button>
     </div>
     
     <!-- 新建会话对话框 -->
@@ -57,21 +77,36 @@ const props = defineProps({
   currentSession: {
     type: String,
     required: true
+  },
+  messages: {
+    type: Object,
+    default: () => ({})
   }
 });
 
-const emits = defineEmits(['select', 'delete', 'create']);
+const emits = defineEmits(['select', 'delete', 'create', 'rename']);
 
 const showNewSessionDialog = ref(false);
 const newSessionName = ref('');
+const contextMenu = ref({ show: false, x: 0, y: 0, session: '' });
 
 const selectSession = (session) => {
   emits('select', session);
+  contextMenu.value.show = false;
 };
 
 const deleteSession = (session) => {
+  contextMenu.value.show = false;
   if (confirm(`确定要删除会话 "${session}" 吗？`)) {
     emits('delete', session);
+  }
+};
+
+const renameSession = (session) => {
+  contextMenu.value.show = false;
+  const newName = prompt(`重命名会话 "${session}"`, session);
+  if (newName && newName.trim() && newName !== session) {
+    emits('rename', session, newName.trim());
   }
 };
 
@@ -81,6 +116,40 @@ const createSession = () => {
     newSessionName.value = '';
     showNewSessionDialog.value = false;
   }
+};
+
+const getLastMessage = (sessionId) => {
+  const sessionMessages = props.messages[sessionId];
+  if (!sessionMessages || sessionMessages.length === 0) {
+    return null;
+  }
+  const lastMsg = sessionMessages[sessionMessages.length - 1];
+  const preview = lastMsg.content.length > 30 
+    ? lastMsg.content.substring(0, 30) + '...' 
+    : lastMsg.content;
+  const time = new Date(lastMsg.timestamp).toLocaleTimeString('zh-CN', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  });
+  return { preview, time };
+};
+
+const showContextMenu = (event, session) => {
+  contextMenu.value = {
+    show: true,
+    x: event.clientX,
+    y: event.clientY,
+    session
+  };
+  // 点击其他地方关闭菜单
+  const closeMenu = () => {
+    contextMenu.value.show = false;
+    document.removeEventListener('click', closeMenu);
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closeMenu);
+  }, 0);
 };
 </script>
 
@@ -136,8 +205,49 @@ const createSession = () => {
   border-radius: var(--radius);
   margin-bottom: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   animation: slideInItem 0.3s ease-out backwards;
+  position: relative;
+}
+
+.session-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.session-name {
+  font-weight: 500;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.session-preview {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.session-time {
+  color: var(--text-tertiary, #64748b);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 @keyframes slideInItem {
@@ -160,11 +270,18 @@ const createSession = () => {
 .session-item:nth-child(n+6) { animation-delay: 0.3s; }
 
 .session-item:hover {
-  background-color: var(--bg-color);
+  background-color: var(--hover-color, var(--bg-secondary));
 }
 
 .session-item.active {
   background-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.session-item.active .session-name,
+.session-item.active .session-preview,
+.session-item.active .session-time {
   color: white;
 }
 
@@ -223,5 +340,33 @@ const createSession = () => {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.context-menu {
+  position: fixed;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 120px;
+  padding: 0.25rem;
+}
+
+.context-menu-item {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.context-menu-item:hover {
+  background-color: var(--hover-color, var(--bg-secondary));
 }
 </style>

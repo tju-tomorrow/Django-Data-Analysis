@@ -145,7 +145,18 @@ const sendMessage = () => {
   const content = message.value.trim();
   if (content) {
     emits("send", content, selectedQueryType.value);
-    message.value = "";
+    // 添加发送后的渐隐动画效果
+    const input = document.getElementById('messageInput');
+    if (input) {
+      input.style.transition = 'opacity 0.2s ease';
+      input.style.opacity = '0.5';
+      setTimeout(() => {
+        message.value = "";
+        input.style.opacity = '1';
+      }, 200);
+    } else {
+      message.value = "";
+    }
   }
 };
 
@@ -257,7 +268,8 @@ const handleFileUpload = (event) => {
 
 .messageBox:focus-within {
   border-color: var(--input-box-focus-border, var(--primary-color));
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background-color: var(--input-box-bg, var(--card-bg));
 }
 
 .fileUploadWrapper {
@@ -343,6 +355,28 @@ const handleFileUpload = (event) => {
   resize: none;
   overflow-y: auto;
   vertical-align: top;
+  caret-color: var(--primary-color);
+}
+
+#messageInput:focus {
+  caret-color: var(--primary-color);
+}
+
+/* 输入框闪烁光标动画 */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+#messageInput:focus::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background-color: var(--primary-color);
+  animation: blink 1s infinite;
+  margin-left: 2px;
+  vertical-align: middle;
 }
 
 /* 确保 textarea 内容从顶部开始 */

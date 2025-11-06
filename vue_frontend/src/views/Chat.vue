@@ -4,17 +4,21 @@
       <SessionList
         :sessions="sessions"
         :current-session="currentSession"
+        :messages="store.messages"
         @select="handleSelectSession"
         @delete="handleDeleteSession"
         @create="handleCreateSession"
+        @rename="handleRenameSession"
       />
 
       <div class="user-info">
         <div class="user-actions">
-          <button class="secondary" @click="handleClearHistory">
-            清空当前会话
+          <button class="icon-btn" @click="handleClearHistory" title="清空当前会话">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
           </button>
-          <button class="danger" @click="handleLogout">退出登录</button>
         </div>
       </div>
     </div>
@@ -313,6 +317,27 @@ const handleDeleteSession = async (sessionId) => {
   }
 };
 
+// 处理重命名会话
+const handleRenameSession = (oldSessionId, newSessionId) => {
+  // 更新会话列表
+  const index = store.sessions.indexOf(oldSessionId);
+  if (index !== -1) {
+    store.sessions[index] = newSessionId;
+    localStorage.setItem('sessions', JSON.stringify(store.sessions));
+    
+    // 如果重命名的是当前会话，更新当前会话
+    if (oldSessionId === store.currentSession) {
+      store.setCurrentSession(newSessionId);
+    }
+    
+    // 迁移消息数据
+    if (store.messages[oldSessionId]) {
+      store.messages[newSessionId] = store.messages[oldSessionId];
+      delete store.messages[oldSessionId];
+    }
+  }
+};
+
 // 处理创建会话
 const handleCreateSession = async (sessionId) => {
   store.addSession(sessionId);
@@ -454,8 +479,8 @@ const handleSignUp = () => {
   max-width: 300px;
   display: flex;
   flex-direction: column;
-  background-color: var(--card-bg);
-  border-right: 1px solid var(--border-color);
+  background-color: var(--sidebar-bg, var(--bg-color));
+  border-right: 1px solid var(--border-subtle, var(--border-color));
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
               opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -511,6 +536,28 @@ const handleSignUp = () => {
 .user-actions {
   display: flex;
   gap: 0.5rem;
+  justify-content: center;
+}
+
+.icon-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+.icon-btn:hover {
+  background: var(--hover-color);
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
 
 .chat-area {
@@ -523,9 +570,10 @@ const handleSignUp = () => {
 }
 
 .chat-header {
-  padding: 1.5rem 1rem;
-  background-color: var(--card-bg);
-  border-bottom: 1px solid var(--border-color);
+  padding: 1.25rem 1.5rem;
+  min-height: 80px;
+  background-color: var(--header-bg, var(--card-bg));
+  border-bottom: 1px solid var(--border-subtle, var(--border-color));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -803,13 +851,13 @@ const handleSignUp = () => {
 }
 
 .header-desc {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
   margin: 0;
   font-weight: 400;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   animation: fadeInUp 0.4s ease-out 0.1s both;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   will-change: transform, opacity;
 }
 

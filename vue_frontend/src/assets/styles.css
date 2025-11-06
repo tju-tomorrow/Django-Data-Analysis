@@ -45,22 +45,26 @@
   /* 次要色 - 柔和的青色 */
   --secondary-color: #06b6d4;
   
-  /* 背景色 - 深灰蓝，更专业 */
-  --bg-color: #0a0e1a;
-  --bg-secondary: #151b2e;
-  --card-bg: #1a2332;
+  /* 背景色 - 深灰蓝，更专业，层次分明 */
+  --bg-color: #0f172a;  /* 主背景 - 最深 */
+  --bg-secondary: #1e293b;  /* 侧栏背景 - 略亮 */
+  --card-bg: #1e293b;  /* 卡片背景 - 与侧栏一致 */
+  --sidebar-bg: #0f172a;  /* 侧栏专用背景 */
+  --header-bg: #1e293b;  /* 顶部栏背景 */
   
   /* 文字颜色 - 提高对比度 */
   --text-color: #e2e8f0;
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;  /* 更浅的次要文字，用于时间标签 */
   
   /* 边框颜色 - 更柔和的灰色 */
-  --border-color: #2d3748;
+  --border-color: #334155;  /* 更明显的边框 */
+  --border-subtle: #1e293b;  /* 微妙的分隔线 */
   
-  /* 消息气泡 - 更专业的配色 */
-  --user-message: #1e3a5f;
-  --bot-message: #1a2332;
+  /* 消息气泡 - 更专业的配色，对比度更高 */
+  --user-message: #2563eb;  /* 用户消息 - 蓝色，更明显 */
+  --bot-message: #334155;  /* AI消息 - 灰蓝色，略亮 */
   
   /* 危险色 - 柔和的红色 */
   --danger-color: #ef4444;

@@ -135,10 +135,16 @@ const formatTime = (date) => {
 
 .message:not(.user-message) .message-content {
   background-color: var(--bot-message);
+  color: var(--text-primary);
 }
 
 .user-message .message-content {
   background-color: var(--user-message);
+  color: white;
+}
+
+.user-message .message-time {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .message-text {
@@ -147,9 +153,11 @@ const formatTime = (date) => {
 }
 
 .message-time {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.625rem;  /* 10px */
+  color: var(--text-tertiary, #64748b);
   text-align: right;
+  margin-top: 0.25rem;
+  opacity: 0.8;
 }
 
 /* Markdown 样式 */
