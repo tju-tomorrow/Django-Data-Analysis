@@ -57,7 +57,7 @@ def get_log_system():
 
 def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
     """
-    调用 DeepSeek-R1 API（使用单例模式，避免重复初始化）
+    调用 DeepSeek API
     
     Args:
         prompt: 用户输入的问题
@@ -66,23 +66,45 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
     Returns:
         LLM 的响应文本
     """
-    print(f"\n🤖 [大模型调用] 开始调用 DeepSeek-R1 API")
+    print(f"\n🤖 [大模型调用] 开始调用 DeepSeek API")
     print(f"🤖 [调用参数] query_type: '{query_type}'")
     print(f"🤖 [Prompt长度] {len(prompt)} 字符")
     
-    # 获取全局单例实例（首次调用会初始化，后续直接复用）
-    system = get_log_system()
+    from model_config import CURRENT_CONFIG
+    use_api = CURRENT_CONFIG.get('use_api', False)
     
-    # 执行查询
-    print(f"🤖 [API请求] 发送请求到大模型...")
-    result = system.query(prompt, query_type=query_type)
-    time.sleep(0.5)
-    
-    response = result["response"]
-    print(f"🤖 [API响应] 收到回复，长度: {len(response)} 字符")
-    print(f"🤖 [回复内容] {response[:100]}{'...' if len(response) > 100 else ''}")
-    
-    return response
+    if use_api:
+        # 使用 DeepSeek API 直接对话（不走 RAG）
+        from deepseek_llm import DeepSeekLLM
+        from llama_index.core.llms import ChatMessage
+        
+        print(f"🤖 [纯对话模式] 直接调用 DeepSeek API，不使用 RAG 检索")
+        
+        llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=60)
+        messages = [ChatMessage(role="user", content=prompt)]
+        
+        print(f"🤖 [API请求] 发送请求到大模型...")
+        response = llm.chat(messages)
+        
+        result_text = response.message.content
+        print(f"🤖 [API响应] 收到回复，长度: {len(result_text)} 字符")
+        print(f"🤖 [回复内容] {result_text[:100]}{'...' if len(result_text) > 100 else ''}")
+        
+        return result_text
+    else:
+        # 使用本地 Ollama + RAG 系统
+        print(f"🤖 [RAG模式] 使用本地 Ollama + RAG 检索")
+        system = get_log_system()
+        
+        print(f"🤖 [API请求] 发送请求到大模型...")
+        result = system.query(prompt, query_type=query_type)
+        time.sleep(0.5)
+        
+        response = result["response"]
+        print(f"🤖 [API响应] 收到回复，长度: {len(response)} 字符")
+        print(f"🤖 [回复内容] {response[:100]}{'...' if len(response) > 100 else ''}")
+        
+        return response
 
 def create_api_key(user: str) -> str:
     """创建 API Key 并保存到数据库"""
