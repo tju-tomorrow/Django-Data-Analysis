@@ -337,13 +337,18 @@ def chat_stream(request, data: ChatIn):
                 yield f"data: {json.dumps({'error': '流式输出仅支持 API 模式'})}\n\n"
                 return
             
-            # 使用新的流式调用函数（支持 RAG）
+            # 使用新的流式调用函数（支持 RAG 和历史上下文）
             from .services import deepseek_r1_api_call_stream
             
             print(f"🤖 [流式调用] 开始流式生成，query_type: {query_type}")
+            print(f"🤖 [会话历史] 历史长度: {len(session.context)} 字符")
             
-            # 调用流式函数，支持 RAG
-            stream_response = deepseek_r1_api_call_stream(user_input, query_type)
+            # 调用流式函数，传递历史上下文
+            stream_response = deepseek_r1_api_call_stream(
+                user_input, 
+                query_type, 
+                history_context=session.context  # 传递历史上下文
+            )
             
             full_reply = ""
             for response in stream_response:

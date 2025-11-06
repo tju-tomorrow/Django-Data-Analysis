@@ -123,13 +123,14 @@ def deepseek_r1_api_call(prompt: str, query_type: str = "analysis") -> str:
         
         return response
 
-def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis"):
+def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis", history_context: str = ""):
     """
-    流式调用 DeepSeek API（支持 RAG）
+    流式调用 DeepSeek API（支持 RAG 和历史上下文）
     
     Args:
         prompt: 用户输入的问题
         query_type: 查询类型（analysis: 日志分析, general_chat: 日常聊天）
+        history_context: 历史对话上下文字符串
     
     Yields:
         流式响应的生成器
@@ -137,6 +138,7 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis"):
     print(f"\n🤖 [流式调用] 开始流式调用 DeepSeek API")
     print(f"🤖 [调用参数] query_type: '{query_type}'")
     print(f"🤖 [Prompt长度] {len(prompt)} 字符")
+    print(f"🤖 [历史上下文长度] {len(history_context)} 字符")
     
     from model_config import CURRENT_CONFIG
     use_api = CURRENT_CONFIG.get('use_api', False)
@@ -146,6 +148,24 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis"):
     
     from deepseek_llm import DeepSeekLLM
     from llama_index.core.llms import ChatMessage
+    
+    # 解析历史上下文，构建消息列表
+    messages = []
+    if history_context:
+        print(f"🤖 [历史解析] 解析历史对话...")
+        from .conversation_manager import ConversationManager
+        conversation_manager = ConversationManager(max_context_length=4000, max_turns=10)
+        
+        # 解析并压缩历史
+        historical_turns = conversation_manager.parse_conversation_history(history_context)
+        compressed_turns = conversation_manager.compress_context(historical_turns)
+        
+        print(f"🤖 [历史压缩] 原始轮次: {len(historical_turns)}, 压缩后: {len(compressed_turns)}")
+        
+        # 将历史转换为消息列表
+        for turn in compressed_turns:
+            messages.append(ChatMessage(role="user", content=turn.user_input))
+            messages.append(ChatMessage(role="assistant", content=turn.assistant_reply))
     
     # 根据 query_type 决定是否使用 RAG
     if query_type == "analysis":
@@ -157,25 +177,25 @@ def deepseek_r1_api_call_stream(prompt: str, query_type: str = "analysis"):
         log_results = system.retrieve_logs(prompt)
         print(f"🤖 [RAG检索] 检索到 {len(log_results)} 条相关日志")
         
-        # 2. 构建包含检索结果的 prompt（context 参数直接传递日志列表）
+        # 2. 构建包含检索结果的 prompt
         rag_prompt = system._build_prompt_string(prompt, log_results, query_type)
         print(f"🤖 [RAG Prompt] 构建完成，长度: {len(rag_prompt)} 字符")
         
-        # 3. 流式调用 LLM
-        llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
-        messages = [ChatMessage(role="user", content=rag_prompt)]
+        # 3. 添加当前用户输入（使用RAG增强的prompt）
+        messages.append(ChatMessage(role="user", content=rag_prompt))
         
-        print(f"🤖 [流式生成] 开始流式生成回复...")
-        return llm.stream_chat(messages)
+        print(f"🤖 [消息列表] 总消息数: {len(messages)} (包含历史)")
     else:
-        # 日常聊天模式：直接流式调用，不使用 RAG
+        # 日常聊天模式：直接添加用户输入
         print(f"🤖 [纯对话模式] 日常聊天，直接流式调用...")
+        messages.append(ChatMessage(role="user", content=prompt))
         
-        llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
-        messages = [ChatMessage(role="user", content=prompt)]
-        
-        print(f"🤖 [流式生成] 开始流式生成回复...")
-        return llm.stream_chat(messages)
+        print(f"🤖 [消息列表] 总消息数: {len(messages)} (包含历史)")
+    
+    # 流式调用 LLM
+    llm = DeepSeekLLM(model=CURRENT_CONFIG['llm'], timeout=120)
+    print(f"🤖 [流式生成] 开始流式生成回复...")
+    return llm.stream_chat(messages)
 
 def create_api_key(user: str) -> str:
     """创建 API Key 并保存到数据库"""
